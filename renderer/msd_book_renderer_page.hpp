@@ -1,0 +1,5 @@
+#ifndef MSD_BOOK_RENDERER_PAGE
+#define MSD_BOOK_RENDERER_PAGE
+
+
+#endif
