@@ -1,5 +1,7 @@
 // #include "BookReader/BookAtomGroup.hpp"
 // #include "BookReader/BookAtomText.hpp"
+#include "BookReader/BookAtom.hpp"
+#include "BookReader/BookAtomText.hpp"
 #include "defs/typedefs.hpp"
 #include "libs/utfcpp/source/utf8.h"
 #include "renderer/book_renderer_formats.hpp"
@@ -7,6 +9,7 @@
 #include <codecvt>
 #include <fstream>
 #include <iostream>
+
 #include <list>
 #include <map>
 #include <string>
@@ -17,7 +20,18 @@ using namespace std;
 int main() {
   // Vector<BookAtomText> v;
   // BookAtomGroup<BookAtomText> c(v);
-  auto b = UTF8toByteBuffer(L"سلام");
+  UTF8String s11(L"سلام");
+  auto b = BookAtom(BookAtomType_Control_NewLine);
+  auto sb = b.serialize_binary();
+  Vector<BYTE> buf(sb->begin(), sb->end());
+  cout << "Size:" << buf.size() << endl;
+  auto d = buf.data(); 
+    cout << endl;
+  for(auto by : buf){
+    std::cout << std::hex << (int) by << " " ;
+  }
+cout << endl;
+  // auto b = UTF8toByteBuffer(L"سلام");
   int i[] = {1, 2};
   std::vector<int> a({9, 8, 3, 2});
   std::cout << a[1] << std::endl;

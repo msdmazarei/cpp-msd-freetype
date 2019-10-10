@@ -1,0 +1,39 @@
+Book Serialization:
+
+ PACK<TY> = LEN(2B) TYPE(2B) DATA(LEN-2)
+
+
+ Book:
+
+Atom List:
+
+PACK<ATOM1> , PACK<ATOM2> , ...
+
+VERSION(1B) = 0
+BOOKTYPE(1B) = 0(MSDFORMAT), 1(PDF), 2(AUDIO), 3(VIDEO)
+ENCY KEY: LEN(2B),DATA(LEN)
+ATOM INDEX TABLE: 
+TABLE TOTAL LEN(4B -> ATOMS COUNT), 
+    PACK INDEX(4B) -> specifies to START BYTE OF 0 ATOM (from start of atoms table)
+    PACK INDEX(4B) -> specifies to START BYE of 1 ATOM (from start of atoms table)
+    ...
+
+ATOMS TABLE:
+    ATOM TABLE LEN(4B)
+ 0. LEN(4B) TYPE(2B) DATA(LEN)
+ 1. LEN(4B) TYPE(2B) DATA(LEN)
+ ....
+
+CONTENT:
+    TABLE LEN(4B)
+    0. LEN(2B) PARENTINDX(2B) TITGROUP_LEN(2B) ATOMINXD0 ... 
+    1. LEN(2B) PARENTINDX(2B) TITGROUP_LEN(2B) ATOMINDX0 ...
+    ..
+    
+ BODY:
+    TABLE LEN(4B) 
+        GROUP_LEN(2B) GROUPTYPE(1B) ATOMINX0 ATOMINDX1 ... ATOMINDX[LEN-1]
+        GROUP_LEN(2B) GROUPTYPE(1B) ....
+        ....
+
+

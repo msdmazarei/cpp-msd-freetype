@@ -10,6 +10,6 @@ enum ClassName {
 };
 class ClearTypeClass {
 public:
-  virtual ClassName getType() {throw 1;};
+  virtual ClassName getType() { throw 1; };
 };
 #endif

@@ -62,7 +62,65 @@ std::tuple<BookAtomText, BookAtomText> get_word_atom(string &line,
   }
   return {BookAtomText(word), BookAtomText(L"")};
 }
+Vector<BookAtom *> uniqAtoms(List<BookAtom *> &bookatoms) {
 
+  List<BookAtom *> uniqAtoms;
+  for (BookAtom *ba : bookatoms) {
+    bool exitance = false;
+    for (auto uba : uniqAtoms) {
+      if (exitance)
+        break;
+      if (uba->getAtomType() == ba->getAtomType()) {
+        switch (uba->getAtomType()) {
+        case BookAtomType_Text: {
+          BookAtomText *bat = (BookAtomText *)uba;
+          if (bat->getText() == ((BookAtomText *)ba)->getText()) {
+            exitance = true;
+          }
+        }
+
+        break;
+        case BookAtomType_Control_NewLine:
+        case BookAtomType_Control_NewPage:
+          exitance = true;
+          break;
+        default:
+          break;
+        }
+      }
+    }
+    if (exitance == false)
+      uniqAtoms.push_back(ba);
+  }
+
+  Vector<BookAtom *> vBookAtoms(uniqAtoms.size());
+  int i = -1;
+  for (auto b : uniqAtoms) {
+    i++;
+    vBookAtoms[i] = b;
+  }
+  return vBookAtoms;
+}
+BookAtom *find_in_uniqAtoms(Vector<BookAtom *> vec, BookAtom *bar) {
+  for (auto c : vec) {
+    if (c->getAtomType() == bar->getAtomType()) {
+      switch (c->getAtomType()) {
+      case BookAtomType_Text:
+        /* code */
+        if (((BookAtomText *)c)->getText() == ((BookAtomText *)bar)->getText())
+          return c;
+        break;
+
+      case BookAtomType_Control_NewLine:
+      case BookAtomType_Control_NewPage:
+        return c;
+      default:
+        break;
+      }
+    }
+  }
+  return NULL;
+};
 int main(int argc, char **argv) {
 
   // BookAtomText a = BookAtomText(L"hello");
@@ -104,6 +162,7 @@ int main(int argc, char **argv) {
     // Get the line length (at least for the valid part)
     int length = utf8::distance(line.begin(), end_it);
     auto it_ = line.begin();
+
     BookAtomText emptystr(L"");
     while (true) {
       auto res = get_word_atom(line, it_);
@@ -145,21 +204,23 @@ int main(int argc, char **argv) {
 
     line_count++;
   }
-
+  Vector<BookAtom *> uAtoms = uniqAtoms(bookatoms);
   Vector<BookDirectionGroup<BookAtom>> groups;
+
   BookTextDirection current_direction = BookTextDirection_LTR;
   List<BookAtom *> *current_dir_atoms = new List<BookAtom *>();
   UTF8String emptystr(L"");
-  for (BookAtom *ba : bookatoms) {
+  for (BookAtom *bar : bookatoms) {
+    BookAtom *ba = find_in_uniqAtoms(uAtoms, bar);
     if (ba->getType() == ClassName_BookAtomText) {
       BookAtomText *bat = (BookAtomText *)ba;
-      if (is_punc(bat->getText())) {
+      if (bat->is_punc()) {
         current_dir_atoms->push_back(ba);
         continue;
       }
       if (bat->getText() == emptystr)
         continue;
-      BookTextDirection atom_dir = get_dir(bat);
+      BookTextDirection atom_dir = bat->get_dir();
       if (current_direction != atom_dir) {
         // dir's changed
         Vector<BookAtom *> v(std::begin(*current_dir_atoms),
@@ -189,6 +250,7 @@ int main(int argc, char **argv) {
   }
   Vector<BookAtom *> v(std::begin(*current_dir_atoms),
                        std::end(*current_dir_atoms));
+
   BookDirectionGroup<BookAtom> bdg(current_direction, v);
   groups.push_back(bdg);
 
@@ -206,7 +268,25 @@ int main(int argc, char **argv) {
   // cgr.push_back(&c);
   // }
   Book b(BookType_MSDFORMAT, cgr);
-
+  auto bb = b.serialize_binary();
+  auto book_file = ofstream("book1.msd");
+  for (auto b1 : *bb) {
+    book_file << b1;
+  }
+  book_file.close();
+  auto rbook_file = ifstream("book1.msd", std::ios_base::binary | std::ios::ate);
+  cout << rbook_file.is_open() << endl;
+  auto filel = rbook_file.tellg();
+  cout << filel <<endl;
+  BYTE *buf = new BYTE[filel];
+  rbook_file.seekg(0, ios::beg);
+  rbook_file.read((char *) buf,filel);
+  rbook_file.close();
+  for(int i=0;i<32;i++){
+    cout <<  hex << (int) buf[i] << " ";
+  }
+  cout <<endl;
+  Book *b1 = Book::deserialize(0, buf);
   // read font file
   ifstream ifs("/home/msd/.fonts/Zar.ttf", ios::binary | ios::ate);
   ifstream::pos_type pos = ifs.tellg();
@@ -238,6 +318,6 @@ int main(int argc, char **argv) {
   BookPosIndicator bpi = b.nextAtom(BookPosIndicator());
   auto rtn = bookRenderer.renderMsdFormatPageAtPointFW(bpi);
   rtn.getImage().write("pageImage.png");
-  
+
   return 0;
 }

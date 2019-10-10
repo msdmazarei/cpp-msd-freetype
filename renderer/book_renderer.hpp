@@ -79,13 +79,13 @@ public:
       // something is found. it is rendered before.
       return &(searchResult->second);
     }
-    std::cout << "type:" << bookatom->getAtomType();
+    // std::cout << "type:" << bookatom->getAtomType();
     switch (bookatom->getAtomType()) {
     case BookAtomType_Text:
       if (true) { // to create new block.
         BookAtomText *txt = (BookAtomText *)bookatom;
         UTF8String text = txt->getText();
-        std::wcout << text << std::endl;
+        // std::wcout << text << std::endl;
 
         auto foreC = rendererFormat->getTextForeColor();
         auto backC = rendererFormat->getTextBackColor();
@@ -107,14 +107,14 @@ public:
             txtRenderer->render((char *)vc_data, vc_size, txtDirection);
         RGBAImage img =
             txtRenderer->colorizeBitmap(tmpTxtBmp.bitmap, foreC, backC);
-        img.write("atom.png");
+        // img.write("atom.png");
         TextImage txtImage{img, tmpTxtBmp.base_line};
         atomImages.insert(std::make_pair(bookatom, txtImage));
         return new TextImage(txtImage);
         break;
       }
     default:
-      std::cout << "UNKNOWN TYPE" << std::endl;
+      // std::cout << "UNKNOWN TYPE" << std::endl;
       throw BookRendererError_t{BookRendererFunc_renderAtom,
                                 BookRendererError_BadATOM};
       break;
@@ -284,7 +284,7 @@ public:
       auto atomImgH = atomImg->image.get_height();
       auto atomImgW = atomImg->image.get_width();
       auto atomImgBaseline = atomImg->base_line;
-      std::cout << "W:" << atomImgW << std::endl;
+      // std::cout << "W:" << atomImgW << std::endl;
       int y = max_baseline - atomImgBaseline;
 
       g = lineGroups[i];
@@ -315,9 +315,7 @@ public:
         copyPngToPng(*lineImagePtr,
                      pageWidth - 1 - total_used_x - (xe_to_copy - xs_to_copy),
                      0, *canvToCopy, xs_to_copy, 0, xe_to_copy, H - 1);
-        canvToCopy->write("canv.png");
-        lineImagePtr->write("lineImage.png");
-
+        
         if (old_dg->getDirection() == BookTextDirection_LTR) {
           ltr_X_start = ltr_X_end;
         } else {
@@ -346,9 +344,7 @@ public:
       copyPngToPng(*lineImagePtr, pageWidth - 1 - total_used_x - rtl_img_w, 0,
                    *rtl_img, rtl_X_end, 0, rtl_X_start, H - 1);
     }
-    rtl_img->write("rtl.png");
-    ltr_img->write("ltr.png");
-    lineImagePtr->write("lineImage.png");
+   
     return *lineImagePtr;
   }
   /*

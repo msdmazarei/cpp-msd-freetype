@@ -4,8 +4,8 @@
 
 #include <istream>
 template <typename T> class Serializable {
-  virtual std::basic_istream<BYTE> serialize_binary() { throw 1; };
-  virtual T deserialize_from_bin(std::basic_istream<BYTE>) { throw 2; };
+  virtual List<BYTE> *serialize_binary() { throw 1; };
+  virtual T deserialize_from_bin(DWORD len, BYTE *buf) { throw 2; };
 };
 
 #endif

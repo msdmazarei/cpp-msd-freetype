@@ -44,6 +44,9 @@ protected:
   Vector<BookAtomGroup<BookAtom> *> groups;
   BookContent Contents;
 
+  List<BYTE> *serialize_group(Vector<BookAtom *> &atoms,
+                              BookAtomGroup<BookAtom> *group);
+
 public:
   ClassName getType() { return ClassName_Book; }
   bool is_render_decomposable() { return true; };
@@ -169,5 +172,12 @@ public:
       throw BookError_t{BookFunc_getGroupAtomByPointer, BookError_BadPointer};
     }
   }
+
+  List<BYTE> *serialize_binary() override;
+  Book deserialize_from_bin(DWORD len, BYTE *buf) override;
+  static Book *deserialize(DWORD index, BYTE *buf);
+  static BookAtom *deserialize_atom(BYTE *buf, DWORD ind);
+
 };
+
 #endif
