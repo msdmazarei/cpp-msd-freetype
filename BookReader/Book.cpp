@@ -110,9 +110,14 @@ List<BYTE> *Book::serialize_binary() {
     for (auto b : *sb)
       BodyTable->push_back(b);
   }
+  auto BodyTableLen = BodyTable->size() + 4;
+  for (int i = 3; i > -1; i--) {
+    auto b = GetByteN(BodyTableLen, i);
+    BodyTable->push_front(b);
+  }
 
   // generate key
-  auto key_len = 0; // rand() % 1024;
+  auto key_len = rand() % 1024;
   Vector<BYTE> enc_key = Vector<BYTE>(key_len);
   for (int i = 0; i < key_len; i++)
     enc_key[i] = rand() % 256;
@@ -122,7 +127,7 @@ List<BYTE> *Book::serialize_binary() {
   rtn->push_back(getBookType()); // BookType
 
   for (int i = 0; i < 4; i++) {
-    BYTE b = GetByteN(key_len + 4 /*its size*/, i);
+    BYTE b = GetByteN((key_len + 4) /*its size*/, i);
     rtn->push_back(b);
   }
   for (int i = 0; i < key_len; i++)
@@ -158,6 +163,38 @@ DWORD getItemSize(BYTE *buf, DWORD ind) {
   }
   return rtn;
 }
+BookAtomGroup<BookAtom> *Book::deserialize_group(BYTE *buf, DWORD ind,
+                                                 Vector<BookAtom *> &atoms) {
+  BookAtomGroup<BookAtom> *rtn = NULL;
+  DWORD groupSize = getItemSize(buf, ind);
+  ind += 4;
+  BYTE groupType = *(buf + ind);
+  ind++;
+  WORD atom_count = (groupSize - 4 - 1) / 2;
+  Vector<BookAtom *> groupAtoms(atom_count);
+  for (int i = 0; i < atom_count; i++) {
+    WORD atomIndex = *(buf + ind) + (*(buf + ind + 1) << 8);
+    ind += 2;
+    groupAtoms[i] = atoms[atomIndex];
+  }
+  switch (groupType) {
+  case 0:
+
+    rtn = new BookAtomGroup<BookAtom>(groupAtoms);
+    break;
+  case 1:
+    rtn = new BookDirectionGroup<BookAtom>(BookTextDirection_LTR, groupAtoms);
+    break;
+  case 2:
+    rtn = new BookDirectionGroup<BookAtom>(BookTextDirection_RTL, groupAtoms);
+
+    break;
+  default:
+    break;
+  }
+  return rtn;
+}
+
 BookAtom *Book::deserialize_atom(BYTE *buf, DWORD ind) {
   BookAtom *rtn = NULL;
   DWORD atomSize = getItemSize(buf, ind);
@@ -178,10 +215,10 @@ BookAtom *Book::deserialize_atom(BYTE *buf, DWORD ind) {
     UTF8String txt;
     for (int i = 0; i < textSize; i++) {
       wchar_t c = 0;
-      c =( c << 8) + *(buf + ind+2);
-      c = (c << 8) + *(buf + ind+1);
+      c = (c << 8) + *(buf + ind + 2);
+      c = (c << 8) + *(buf + ind + 1);
       c = (c << 8) + *(buf + ind);
-      ind+=3;
+      ind += 3;
       txt.push_back(c);
     }
     rtn = new BookAtomText(txt);
@@ -193,7 +230,8 @@ BookAtom *Book::deserialize_atom(BYTE *buf, DWORD ind) {
   return rtn;
 }
 
-Book *Book::deserialize(DWORD index, BYTE *buf) {
+Book *Book::deserialize(DWORD len, BYTE *buf) {
+  if(len<20) return NULL;
   DWORD ind = 0;
   BYTE file_version = *buf;
   ind++;
@@ -201,6 +239,7 @@ Book *Book::deserialize(DWORD index, BYTE *buf) {
     BYTE booktype = *(buf + ind);
     ind++;
     DWORD key_len = getItemSize(buf, ind);
+    if(key_len+ind>len) return NULL;
     ind += 4;
     Vector<BYTE> enc_key(key_len - 4);
     for (int i = 0; i < key_len - 4; i++) {
@@ -214,11 +253,13 @@ Book *Book::deserialize(DWORD index, BYTE *buf) {
       else
         atomTableLen = (atomTableLen << 8) + (*(buf + ind + i) ^ enc_key[i]);
     }
-    ind += 4;
+    if(atomTableLen+ind>len) return NULL;
     // totaly decrypt atom table
     if (key_len - 4 != 0)
       for (int i = 0; i < atomTableLen; i++)
         *(buf + ind + i) = *(buf + ind + i) ^ enc_key[i];
+//goto first atom
+    ind += 4;
 
     List<BookAtom *> bookAtoms;
     DWORD parsedAtoms = 0;
@@ -229,6 +270,33 @@ Book *Book::deserialize(DWORD index, BYTE *buf) {
       ind += atomSize;
       bookAtoms.push_back(atom);
     }
+    DWORD BodyTableLen = 0;
+    for (int i = 3; i > -1; i--) {
+      if (key_len - 4 == 0)
+        BodyTableLen = (BodyTableLen << 8) + (*(buf + ind + i));
+      else
+        BodyTableLen = (BodyTableLen << 8) + (*(buf + ind + i) ^ enc_key[i]);
+    }
+    if(BodyTableLen+ind>len) return NULL;
+              // totaly decrypt body table
+    if (key_len - 4 != 0)
+      for (int i = 0; i < BodyTableLen; i++)
+        *(buf + ind + i) = *(buf + ind + i) ^ enc_key[i];
+    ind += 4; /*goto first group*/
+
+    Vector<BookAtom *> v_book_atoms(bookAtoms.begin(), bookAtoms.end());
+
+    DWORD parsedGroup = 0;
+    List<BookAtomGroup<BookAtom> *> groups;
+    while (parsedGroup < BodyTableLen-4) {
+      DWORD group_size = getItemSize(buf, ind);
+      auto group = Book::deserialize_group(buf, ind, v_book_atoms);
+      groups.push_back(group);
+      ind += group_size;
+      parsedGroup += group_size;
+    }
+      Vector<BookAtomGroup<BookAtom>*> vbg(groups.begin(),groups.end());
+    return new  Book((BookType)booktype,vbg);
   }
   return NULL;
 }

@@ -1,4 +1,5 @@
 #include "msd_renderer.hpp"
+#include "defs/typedefs.hpp"
 
 // #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #include "stb_image_write.h"
@@ -6,11 +7,12 @@
 inline void copy_glyph_bitmap_to_gray_image(png::image<png::gray_pixel> &img,
                                             FT_Bitmap *bitmap, uint x_offset,
                                             uint y_offset) {
-  for (uint iy = 0 ; iy < bitmap->rows; iy++) {
-    for (uint ix = 1 ; ix < bitmap->width - 1; ix++) {
+  for (uint iy = 0; iy < bitmap->rows; iy++) {
+    for (uint ix = 1; ix < bitmap->width - 1; ix++) {
       uint target_x = x_offset + ix;
       uint target_y = y_offset + iy;
-      if(target_x <0 || target_y <0) continue;
+      if (target_x < 0 || target_y < 0)
+        continue;
       uint bufferindx = ix + iy * bitmap->width;
       img.set_pixel(target_x, target_y, *(bitmap->buffer + bufferindx));
     }
@@ -30,13 +32,17 @@ typedef struct TextRendererException_ {
 
 TextRenderer::TextRenderer(BYTE *buffer, unsigned long len)
     : font_buffer(buffer), font_buffer_len(len) {
-  if ((ft_error = FT_Init_FreeType(&ft_library)))
+  if ((ft_error = FT_Init_FreeType(&ft_library))) {
+    MLOG("FT_INIT_FReetype Exception");
     throw TextRendererException_t{func_FT_Init_FreeType, ft_error};
-
-  if ((ft_error = FT_New_Memory_Face(ft_library, buffer, len, 0, &ft_face)))
+  }
+  if ((ft_error = FT_New_Memory_Face(ft_library, buffer, len, 0, &ft_face))) {
+    MLOG("FT_New_Memory_Face Exception");
     throw TextRendererException_t{func_FT_New_Memory_Face, ft_error};
-
+  }
+  MLOG("hb_font creating");
   hb_font = hb_ft_font_create(ft_face, NULL);
+  MLOG("hb_font created");
 }
 
 void TextRenderer::set_font_size(unsigned int font_size) {
@@ -66,7 +72,7 @@ std::vector<glyph_position> TextRenderer::get_glyphs(char *text,
   double current_y = 0;
   for (unsigned int i = 0; i < len; i++) {
     hb_codepoint_t gid = info[i].codepoint;
-    if ((ft_error = FT_Load_Glyph(ft_face, gid, FT_LOAD_COMPUTE_METRICS))) {
+    if ((ft_error = FT_Load_Glyph(ft_face, gid, FT_LOAD_COMPUTE_METRICS | FT_LOAD_RENDER))) {
       hb_buffer_destroy(hb_buffer);
       throw TextRendererException_t{func_FT_Load_Glyph, ft_error};
     }
@@ -78,7 +84,9 @@ std::vector<glyph_position> TextRenderer::get_glyphs(char *text,
     gp.y = y_position;
     gp.gid = gid;
     gp.bitmap_width = ft_face->glyph->bitmap.width;
-    gp.bitmap_height = ft_face->glyph->bitmap.rows;
+    gp.bitmap_height = ft_face->glyph->bitmap.rows  ;
+    MLOG2("gid:",gid);
+    MLOG2("ft_face->glyph->bitmap.rows:", ft_face->glyph->bitmap.rows);
     gp.metrics_height = ft_face->glyph->metrics.height;
     gp.metrics_width = ft_face->glyph->metrics.width;
     gp.metrics_horiBearingY = ft_face->glyph->metrics.horiBearingY;
@@ -94,11 +102,15 @@ std::vector<glyph_position> TextRenderer::get_glyphs(char *text,
 }
 
 TextBitmap TextRenderer::render(char *text, unsigned int text_len, bool ltr) {
+  MLOG("TextRenderer::render called. getting glyphs");
   auto glyphs_props = get_glyphs(text, text_len);
   int min_y = 0, max_y = 0, image_height = 0, image_width = 0;
   int min_x = 0;
   float _image_width = 0;
   for (auto g : glyphs_props) {
+    MLOG2("g.gid:", g.gid);
+    MLOG2("g.bitmap_h:", g.bitmap_height);
+    MLOG2("g.metrics_height:", g.metrics_height);
     if (g.metrics_height == 0)
       continue;
     float conversion_ratio = (float)g.bitmap_height / (float)g.metrics_height;
@@ -120,33 +132,38 @@ TextBitmap TextRenderer::render(char *text, unsigned int text_len, bool ltr) {
   BYTE *image_buffer = (BYTE *)malloc(image_height * image_width * 1);
   unsigned int glyphs_len = glyphs_props.size();
   png::image<png::gray_pixel> img_rtn(image_width, image_height);
+  MLOG2("img_rtx.w:", image_width);
+  MLOG2("img_rtn.h:", image_height);
 
   for (unsigned int i = 0; i < glyphs_len; i++) {
     unsigned int glyph_index = ltr ? i : glyphs_len - i - 1;
     auto current_glyph = glyphs_props[glyph_index];
     if (current_glyph.metrics_height == 0)
       continue;
-
+    MLOG("loading and rendering glyph");
     FT_Load_Glyph(ft_face, current_glyph.gid, FT_LOAD_DEFAULT);
     FT_Render_Glyph(ft_face->glyph, FT_RENDER_MODE_NORMAL);
-
+    MLOG("glyph rendererd");
     // char *filename = (char *)malloc(2);
     // *filename = '0' + i;
     // *(filename + 1) = 0;
 
     uint true_width = ft_face->glyph->bitmap.width;
     uint true_height = ft_face->glyph->bitmap.rows;
-
+    MLOG2("glyph w:", true_width);
+    MLOG2("glyph h:", true_height);
     int current_x = current_glyph.x + current_glyph.bitmap_left;
     int gy = max_y - (float)current_glyph.bitmap_height /
                          current_glyph.metrics_height *
                          current_glyph.metrics_horiBearingY;
 
     auto x_from = current_x < 0 ? -current_x : 0;
-
-    copy_glyph_bitmap_to_gray_image(img_rtn, &ft_face->glyph->bitmap, current_x<0 ? 0:current_x,
-                                    gy);
+    MLOG2("current_x: ", current_x);
+    MLOG2("gy:", gy);
+    copy_glyph_bitmap_to_gray_image(img_rtn, &ft_face->glyph->bitmap,
+                                    current_x < 0 ? 0 : current_x, gy);
   }
+  MLOG("Atom renderered successfully");
   return {img_rtn, (uint)max_y};
 }
 inline BYTE getColor(float colorDistance, BYTE fColor, BYTE bColor) {

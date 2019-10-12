@@ -62,10 +62,17 @@ public:
 
   TextImage *renderAtom(BookAtomGroup<BookAtom> *bookatomGroup,
                         BookAtom *bookatom) {
+    MLOG("RENDER ATOM CALLED");
     if (txtRenderer == NULL) {
+      MLOG("creating text renderer");
+      auto p = rendererFormat->getFontBuffer();
+      long pl = (long)(void *)p;
+      MLOG2("font buffer:", pl);
+      MLOG2("buffer font Size:", rendererFormat->getFontBufferSize());
       txtRenderer = new TextRenderer(rendererFormat->getFontBuffer(),
                                      rendererFormat->getFontBufferSize());
     }
+    MLOG("set font size");
     txtRenderer->set_font_size(rendererFormat->getFontSize());
 
     BookTextDirection txtDirection = BookTextDirection_LTR;
@@ -103,11 +110,13 @@ public:
         auto vc = UTF8toByteBuffer(text);
         auto vc_size = vc.size();
         auto vc_data = vc.data();
+        MLOG("rendering atom to bitmap");
         TextBitmap tmpTxtBmp =
             txtRenderer->render((char *)vc_data, vc_size, txtDirection);
         RGBAImage img =
             txtRenderer->colorizeBitmap(tmpTxtBmp.bitmap, foreC, backC);
         // img.write("atom.png");
+        MLOG2("Text Image return with baseline", tmpTxtBmp.base_line);
         TextImage txtImage{img, tmpTxtBmp.base_line};
         atomImages.insert(std::make_pair(bookatom, txtImage));
         return new TextImage(txtImage);
@@ -145,6 +154,7 @@ public:
                       BookRenderer *bookRenderer, RenderDirection rDirection)
       : book(book), startLinePosInd(pointer), pageWidth(pageWidth),
         bookRenderer(bookRenderer), rDirection(rDirection), lineImagePtr(NULL) {
+    MLOG("MsdBookRendererLine Constructor Called.");
   }
   //   MsdBookRendererLine(Book *book) : book(book), rendererFunc(NULL){};
   //   MsdBookRendererLine(TextImage *(&rendererFunc)(
@@ -152,6 +162,7 @@ public:
   //       : rendererFunc(rendererFunc) {}
 
   Vector<BookPosIndicator> getAtomPointersForALine() {
+    MLOG("getAtomPointersForALine called.");
     List<BookPosIndicator> rtn;
     List<BookAtom *> l_lineAtoms;
     List<BookAtomGroup<BookAtom> *> l_lineGroups;
@@ -161,10 +172,14 @@ public:
     BookPosIndicator tmpPos = startLinePosInd;
     WORD cW = 0;
     while (true) {
+      MLOG("in loop getting group_and_atom");
       auto group_and_atom = book->getGroupAtomByPointer(tmpPos);
+      MLOG(" group and atom returned as tuple");
       auto groupPtr = std::get<0>(group_and_atom);
       auto atomPtr = std::get<1>(group_and_atom);
+      MLOG("group and atom extracted");
       if (atomPtr->getAtomType() == BookAtomType_Control_NewLine) {
+        MLOG("NEW LINE ATOM");
         if (l_lineAtoms.size() == 0) {
           try {
             if (rDirection == RenderDirection_Forward)
@@ -181,7 +196,9 @@ public:
         } else
           break;
       }
+      MLOG("RENDERING ATOM");
       auto txtImgPtr = bookRenderer->renderAtom(groupPtr, atomPtr);
+      MLOG("ATOM RENDERERD");
       auto atomImageWidth = txtImgPtr->image.get_width();
       if (cW + atomImageWidth > pageWidth - 1)
         break;
@@ -256,12 +273,14 @@ public:
     }
   }
   RGBAImage force_render() {
-
+    MLOG("force_render called.");
     WORD max_height = 0;
     WORD max_baseline = 0;
     WORD max_underbaseline = 0;
     int total_used_x = 0;
     WORD totalw = 0;
+    MLOG("iter over atomImages with len:");
+    MLOG(atomImages.size());
     for (auto t : atomImages) {
       auto iH = t->image.get_height();
       auto iB = t->base_line;
@@ -315,7 +334,7 @@ public:
         copyPngToPng(*lineImagePtr,
                      pageWidth - 1 - total_used_x - (xe_to_copy - xs_to_copy),
                      0, *canvToCopy, xs_to_copy, 0, xe_to_copy, H - 1);
-        
+
         if (old_dg->getDirection() == BookTextDirection_LTR) {
           ltr_X_start = ltr_X_end;
         } else {
@@ -344,7 +363,7 @@ public:
       copyPngToPng(*lineImagePtr, pageWidth - 1 - total_used_x - rtl_img_w, 0,
                    *rtl_img, rtl_X_end, 0, rtl_X_start, H - 1);
     }
-   
+
     return *lineImagePtr;
   }
   /*
@@ -391,22 +410,31 @@ public:
       : book(book), pageWidth(pageWidth), pageHeight(pageHeight),
         bookRenderer(bookRenderer), renderDirection(renderDirection),
         startPagePosInd(startPagePosInd), lineSpace(lineSpace) {
+    std::cout << "Page renderer Called" << std::endl;
+
+    MLOG("");
     if (startPagePosInd.size() == 0)
       startPagePosInd = book->nextAtom(startPagePosInd);
+    MLOG("")
     pageImage = RGBAImage(pageWidth, pageHeight);
+    MLOG("filling image with pixel");
     fillImageWithPixel(
         pageImage, bookRenderer->getBookRendererFormat()->getTextBackColor());
     BookPosIndicator tmpPos = getTrueStartPoint();
 
     WORD current_height = 0;
     while (true) {
+      MLOG("GET A LINE");
       MsdBookRendererLine *line = new MsdBookRendererLine(
           book, tmpPos, pageWidth, bookRenderer, RenderDirection_Forward);
       line->getAtomPointersForALine();
+      MLOG("RENDERING LINE");
       RGBAImage lineImage = line->render();
+      MLOG("LINE RENDERERD");
       if (line->getMaxHeight() + current_height + lineSpace > pageHeight) {
         break;
       }
+
       lines.push_back(line);
       copyPngToPng(pageImage, 0, current_height, lineImage, 0, 0,
                    lineImage.get_width() - 1, lineImage.get_height() - 1);
@@ -424,6 +452,8 @@ public:
           tmpPos = book->nextAtom(tmpPos);
         }
       } catch (const BookError_t &e) {
+        MLOG("EXCEPTION HAPPEN. ");
+        MLOG(e.error);
         if (e.error == BookError_NextAtomNotExists ||
             e.error == BookError_PrevAtomNotExists)
           break;

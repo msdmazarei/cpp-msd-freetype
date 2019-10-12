@@ -12,7 +12,7 @@ protected:
 public:
   BookAtom(BookAtomType type);
   virtual BookAtomType getAtomType() { return atom_type; }
-  ClassName getType();
+  ClassName getType() override;
   virtual bool is_screen_renderable() { throw 1; };
   virtual BookAtom *clone() {
     BookAtom *rtn = new BookAtom(atom_type);

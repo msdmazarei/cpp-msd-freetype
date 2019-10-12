@@ -27,7 +27,7 @@ Vector<BYTE> UTF8toByteBuffer(UTF8String str) {
 
 List<BYTE> DWORD2Bytes(DWORD num){
   List<BYTE> rtn;
-  for(BYTE i=sizeof(DWORD)-1;i>-1;i--)
+  for(int i=sizeof(DWORD)-1;i>-1;i--)
   {
     BYTE a = GetByteN(num,i);
     rtn.push_back(a);

@@ -48,9 +48,9 @@ protected:
                               BookAtomGroup<BookAtom> *group);
 
 public:
-  ClassName getType() { return ClassName_Book; }
-  bool is_render_decomposable() { return true; };
-  Vector<BookAtomGroup<BookAtom> *> decompose() { return groups; };
+  ClassName getType() override{ return ClassName_Book; }
+  bool is_render_decomposable() override{ return true; };
+  Vector<BookAtomGroup<BookAtom> *> decompose() override { return groups; };
   Book(BookType book_type, Vector<BookAtomGroup<BookAtom> *> grps)
       : booktype(book_type), groups(grps){};
   BookType getBookType() { return booktype; }
@@ -87,6 +87,7 @@ public:
     throw BookError_t{BookFunc_prevGroup, BookError_PrevGroupNotExists};
   }
   Vector<WORD> nextAtom(Vector<WORD> pointer) {
+    MLOG(" - next ATOM");
     int group_pointer = -1;
     int atom_pointer = -1;
     bool continue_loop = true;
@@ -95,6 +96,7 @@ public:
       try {
         group_pointer = nextGroup(pointer);
       } catch (BookError_t e) {
+        MLOG(" - raise Exception ");
         if (e.error == BookError_NextGroupNotExists)
           throw BookError_t{BookFunc_nextAtom, BookError_NextAtomNotExists};
         else
@@ -132,6 +134,7 @@ public:
     }
     if (group_pointer < 0 || atom_pointer < 0)
       throw "Invalid Group pointer, Atom pointer";
+      MLOG("- Successfully goto next atom");
     return Vector<WORD>({(WORD)group_pointer, (WORD)atom_pointer});
   }
   Vector<WORD> prevAtom(Vector<WORD> pointer) {
@@ -161,14 +164,17 @@ public:
 
   std::tuple<BookAtomGroup<BookAtom> *, BookAtom *>
   getGroupAtomByPointer(Vector<WORD> pointer) {
+  MLOG("getGroupAtomByPointer Called.")  
     if (pointer.size() == 2) {
       WORD groupIndex = pointer[0];
       WORD wordIndex = pointer[1];
       BookAtomGroup<BookAtom> *group = decompose()[groupIndex];
       BookAtom *bookAtom = group->decompose()[wordIndex];
+      MLOG("getGroupAtomByPointer - return group and bookAtom");
       return std::tuple<BookAtomGroup<BookAtom> *, BookAtom *>(group, bookAtom);
 
     } else {
+      MLOG("getGroupAtomByPointer raise exception, cause pointer.size!=2");
       throw BookError_t{BookFunc_getGroupAtomByPointer, BookError_BadPointer};
     }
   }
@@ -177,7 +183,8 @@ public:
   Book deserialize_from_bin(DWORD len, BYTE *buf) override;
   static Book *deserialize(DWORD index, BYTE *buf);
   static BookAtom *deserialize_atom(BYTE *buf, DWORD ind);
-
+  static BookAtomGroup<BookAtom> *deserialize_group(BYTE *buf, DWORD ind,
+                                                    Vector<BookAtom *> &atoms);
 };
 
 #endif

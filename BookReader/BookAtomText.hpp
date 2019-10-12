@@ -11,7 +11,7 @@ protected:
 
 public:
   BookAtomText(UTF8String s);
-  ClassName getType() { return ClassName_BookAtomText; }
+  ClassName getType() override{ return ClassName_BookAtomText; }
   bool is_screen_renderable() override;
   bool is_render_decomposable() override;
   Vector<wchar_t> decompose() override;
@@ -36,7 +36,7 @@ public:
     return false;
   }
 
-  BookAtom *clone() {
+  BookAtom *clone() override {
     BookAtom *rtn = new BookAtomText(str);
     return rtn;
   }
