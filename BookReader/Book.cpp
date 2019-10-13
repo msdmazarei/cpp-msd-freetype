@@ -103,10 +103,11 @@ List<BYTE> *Book::serialize_binary() {
   List<BYTE> *BodyTable = new List<BYTE>();
   for (auto g : decompose()) {
     auto sb = serialize_group(uAtoms, g);
-    for (BYTE b : *sb) {
-      std::cout << std::hex << (int)b << " ";
-    }
-    std::cout << std::endl;
+    /* for (BYTE b : *sb) {
+       std::cout << std::hex << (int)b << " ";
+     }
+     std::cout << std::endl;
+     */
     for (auto b : *sb)
       BodyTable->push_back(b);
   }
@@ -115,7 +116,8 @@ List<BYTE> *Book::serialize_binary() {
     auto b = GetByteN(BodyTableLen, i);
     BodyTable->push_front(b);
   }
-
+  // random number
+  srand(time(NULL));
   // generate key
   auto key_len = rand() % 1024;
   Vector<BYTE> enc_key = Vector<BYTE>(key_len);
@@ -231,7 +233,8 @@ BookAtom *Book::deserialize_atom(BYTE *buf, DWORD ind) {
 }
 
 Book *Book::deserialize(DWORD len, BYTE *buf) {
-  if(len<20) return NULL;
+  if (len < 20)
+    return NULL;
   DWORD ind = 0;
   BYTE file_version = *buf;
   ind++;
@@ -239,7 +242,8 @@ Book *Book::deserialize(DWORD len, BYTE *buf) {
     BYTE booktype = *(buf + ind);
     ind++;
     DWORD key_len = getItemSize(buf, ind);
-    if(key_len+ind>len) return NULL;
+    if (key_len + ind > len)
+      return NULL;
     ind += 4;
     Vector<BYTE> enc_key(key_len - 4);
     for (int i = 0; i < key_len - 4; i++) {
@@ -253,12 +257,13 @@ Book *Book::deserialize(DWORD len, BYTE *buf) {
       else
         atomTableLen = (atomTableLen << 8) + (*(buf + ind + i) ^ enc_key[i]);
     }
-    if(atomTableLen+ind>len) return NULL;
+    if (atomTableLen + ind > len)
+      return NULL;
     // totaly decrypt atom table
     if (key_len - 4 != 0)
       for (int i = 0; i < atomTableLen; i++)
-        *(buf + ind + i) = *(buf + ind + i) ^ enc_key[i];
-//goto first atom
+        *(buf + ind + i) = *(buf + ind + i) ^ enc_key[i % (key_len - 4)];
+    // goto first atom
     ind += 4;
 
     List<BookAtom *> bookAtoms;
@@ -275,28 +280,30 @@ Book *Book::deserialize(DWORD len, BYTE *buf) {
       if (key_len - 4 == 0)
         BodyTableLen = (BodyTableLen << 8) + (*(buf + ind + i));
       else
-        BodyTableLen = (BodyTableLen << 8) + (*(buf + ind + i) ^ enc_key[i]);
+        BodyTableLen = (BodyTableLen << 8) +
+                       (*(buf + ind + i) ^ enc_key[i % (key_len - 4)]);
     }
-    if(BodyTableLen+ind>len) return NULL;
-              // totaly decrypt body table
+    if (BodyTableLen + ind > len)
+      return NULL;
+    // totaly decrypt body table
     if (key_len - 4 != 0)
       for (int i = 0; i < BodyTableLen; i++)
-        *(buf + ind + i) = *(buf + ind + i) ^ enc_key[i];
+        *(buf + ind + i) = *(buf + ind + i) ^ enc_key[i % (key_len - 4)];
     ind += 4; /*goto first group*/
 
     Vector<BookAtom *> v_book_atoms(bookAtoms.begin(), bookAtoms.end());
 
     DWORD parsedGroup = 0;
     List<BookAtomGroup<BookAtom> *> groups;
-    while (parsedGroup < BodyTableLen-4) {
+    while (parsedGroup < BodyTableLen - 4) {
       DWORD group_size = getItemSize(buf, ind);
       auto group = Book::deserialize_group(buf, ind, v_book_atoms);
       groups.push_back(group);
       ind += group_size;
       parsedGroup += group_size;
     }
-      Vector<BookAtomGroup<BookAtom>*> vbg(groups.begin(),groups.end());
-    return new  Book((BookType)booktype,vbg);
+    Vector<BookAtomGroup<BookAtom> *> vbg(groups.begin(), groups.end());
+    return new Book((BookType)booktype, vbg);
   }
   return NULL;
 }

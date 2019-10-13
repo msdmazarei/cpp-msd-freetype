@@ -58,6 +58,9 @@ public:
   MsdBookRendererPage
   //, BookPosIndicator>
   renderMsdFormatPageAtPointFW(Vector<WORD> pointer);
+  MsdBookRendererPage
+  //, BookPosIndicator>
+  renderMsdFormatPageAtPointBack(Vector<WORD> pointer);
   RGBAImage nextPageImage();
 
   TextImage *renderAtom(BookAtomGroup<BookAtom> *bookatomGroup,
@@ -410,7 +413,7 @@ public:
       : book(book), pageWidth(pageWidth), pageHeight(pageHeight),
         bookRenderer(bookRenderer), renderDirection(renderDirection),
         startPagePosInd(startPagePosInd), lineSpace(lineSpace) {
-    std::cout << "Page renderer Called" << std::endl;
+    //std::cout << "Page renderer Called" << std::endl;
 
     MLOG("");
     if (startPagePosInd.size() == 0)
@@ -421,7 +424,8 @@ public:
     fillImageWithPixel(
         pageImage, bookRenderer->getBookRendererFormat()->getTextBackColor());
     BookPosIndicator tmpPos = getTrueStartPoint();
-
+    if (renderDirection == RenderDirection_Backward)
+      endPagePosInd = tmpPos;
     WORD current_height = 0;
     while (true) {
       MLOG("GET A LINE");
@@ -459,6 +463,8 @@ public:
           break;
       }
     }
+    if (renderDirection == RenderDirection_Forward)
+      endPagePosInd = tmpPos;
   }
   BookPosIndicator getEndPagePointer() { return endPagePosInd; }
 
@@ -481,7 +487,7 @@ public:
       cH += lineMaxHeight + lineSpace;
     }
     if (lines.size() > 0) {
-      auto last_line = *lines.end();
+      auto last_line = lines.back();
       return last_line->getEndLinePointer();
     }
     throw "No LINE FOUND.";
@@ -499,5 +505,13 @@ BookRenderer::renderMsdFormatPageAtPointFW(Vector<WORD> pointer) {
   // return std::make_tuple(rtn, pageEndPointer);
   return rtn;
 };
-
+MsdBookRendererPage
+//, BookPosIndicator>
+BookRenderer::renderMsdFormatPageAtPointBack(Vector<WORD> pointer) {
+  MsdBookRendererPage rtn(book, pageWidth, pageHeight, pointer,
+                          RenderDirection_Backward, this, (WORD)15);
+  auto pageEndPointer = rtn.getTrueStartPoint();
+  // return std::make_tuple(rtn, pageEndPointer);
+  return rtn;
+};
 #endif

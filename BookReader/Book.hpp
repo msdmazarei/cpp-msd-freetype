@@ -42,17 +42,48 @@ class Book : public Serializable<Book>,
 protected:
   BookType booktype;
   Vector<BookAtomGroup<BookAtom> *> groups;
+  BookPosIndicator lastAtom;
+  BookPosIndicator firstAtom;
   BookContent Contents;
 
   List<BYTE> *serialize_group(Vector<BookAtom *> &atoms,
                               BookAtomGroup<BookAtom> *group);
 
 public:
-  ClassName getType() override{ return ClassName_Book; }
-  bool is_render_decomposable() override{ return true; };
+  ClassName getType() override { return ClassName_Book; }
+  bool is_render_decomposable() override { return true; };
   Vector<BookAtomGroup<BookAtom> *> decompose() override { return groups; };
   Book(BookType book_type, Vector<BookAtomGroup<BookAtom> *> grps)
-      : booktype(book_type), groups(grps){};
+      : booktype(book_type), groups(grps) {
+    firstAtom = nextAtom(BookPosIndicator());
+    lastAtom = BookPosIndicator({0,0});
+    auto groups = decompose();
+    int lastgroupindex = groups.size()-1;
+    for (;lastgroupindex > -1;lastgroupindex--) {
+      auto atoms = groups[lastgroupindex]->decompose();
+      if (atoms.size() == 0) {
+
+        continue;
+      } else {
+        lastAtom =
+            BookPosIndicator({(WORD)lastgroupindex, (WORD)atoms.size() - 1});
+            break;
+      }
+    }
+    std::cout << lastgroupindex;
+  };
+  bool is_last_atom(BookPosIndicator ind) {
+    if (ind.size() == 2)
+      return (ind[0] >= lastAtom[0] && ind[1] >= lastAtom[1]);
+    else
+      return false;
+  }
+  bool is_first_atom(BookPosIndicator ind) {
+    if (ind.size() == 2)
+      return ind[0] <= firstAtom[0] && ind[1] <= firstAtom[1];
+    else
+      return false;
+  }
   BookType getBookType() { return booktype; }
   bool is_book_renderable() {
     return booktype == BookType_MSDFORMAT || booktype == BookType_PDF;
@@ -134,7 +165,7 @@ public:
     }
     if (group_pointer < 0 || atom_pointer < 0)
       throw "Invalid Group pointer, Atom pointer";
-      MLOG("- Successfully goto next atom");
+    MLOG("- Successfully goto next atom");
     return Vector<WORD>({(WORD)group_pointer, (WORD)atom_pointer});
   }
   Vector<WORD> prevAtom(Vector<WORD> pointer) {
@@ -164,7 +195,7 @@ public:
 
   std::tuple<BookAtomGroup<BookAtom> *, BookAtom *>
   getGroupAtomByPointer(Vector<WORD> pointer) {
-  MLOG("getGroupAtomByPointer Called.")  
+    MLOG("getGroupAtomByPointer Called.")
     if (pointer.size() == 2) {
       WORD groupIndex = pointer[0];
       WORD wordIndex = pointer[1];
