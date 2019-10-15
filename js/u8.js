@@ -73,7 +73,13 @@ var msdreader =
       getBookType: Module.cwrap('getBookType', 'number', 'number'),
       deleteRenderedPage:
           Module.cwrap('deleteRenderedPage', 'number', ['number']),
-      deleteBytePoniter: Module.cwrap('deleteBytePoniter', 'number', ['number'])
+      deleteBytePoniter:
+          Module.cwrap('deleteBytePoniter', 'number', ['number']),
+      getBookTotalAtoms:
+          Module.cwrap('getBookTotalAtoms', 'number', ['number']),
+      getBookProgress: Module.cwrap('getBookProgress', 'number', 'number'),
+      gotoBookPosIndicator:
+          Module.cwrap('gotoBookPosIndicator', 'number', ['number', 'number'])
 
     }
 
@@ -159,6 +165,27 @@ class book {
         msdreader.BookNextPart(this.bookPtr, bookIndicatorPtr);
     msdreader.deleteBookPosIndicator(bookIndicatorPtr);
   }
+  renderPrevPage() {
+    debugger;
+    if (msdreader.is_first_atom(this.bookPtr, this.currentBookPosIndicator))
+      throw new Error('EOF');
+
+    let PrevPage = msdreader.renderBackPage(
+        this.bookRendererPtr, this.currentBookPosIndicator);
+    if (this.renderedPagePtr) {
+      msdreader.deleteRenderedPage(this.renderedPagePtr);
+    }
+    this.lastBookPosIdicator = this.currentBookPosIndicator;
+    this.currentBookPosIndicator = 
+        msdreader.getBookIndicatorPartOfPageResult(PrevPage);
+    let img = msdreader.getImageofPageResult(PrevPage);
+    let imageSize = getDWORDSize(img);
+    let pngData = extractFromHeapBytes(imageSize - 4, img + 4);
+    let pic = 'data:image/png;base64,' + _arrayBufferToBase64(pngData);
+    msdreader.deleteBytePoniter(img);
+    this.renderedPagePtr = PrevPage;
+    return pic;
+  }
 
   renderNextPage() {
     debugger;
@@ -187,6 +214,29 @@ class book {
   areWeAtEnd() {
     return msdreader.is_last_atom(this.bookPtr, this.currentBookPosIndicator);
   }
+  getProgress() {
+    let atomC = msdreader.getBookTotalAtoms(this.bookPtr);
+    let p =
+        msdreader.getBookProgress(this.bookPtr, this.currentBookPosIndicator);
+    return p / atomC;
+  }
+  getCurrentBookIndicator() {
+    debugger;
+    let g = msdreader.getIndicatorPart(this.currentBookPosIndicator, 0);
+    let a = msdreader.getIndicatorPart(this.currentBookPosIndicator, 1);
+    return {group: g, atom: a};
+  }
+  gotoPos(indicator) {
+
+    // has memory leakage 
+    // be careful of using it
+    if (this.renderedPagePtr) {
+      // to free current BookPos
+      msdreader.deleteRenderedPage(this.renderedPagePtr);
+    }
+    this.currentBookPosIndicator = msdreader.gotoBookPosIndicator(
+        indicator.group || 0, indicator.atom || 0)
+  }
 }
 
 
@@ -209,10 +259,14 @@ async function main() {
   bookbuf = base64ToBuffer(book64);
 
   let a = new book(bookbuf, 500, 500, font, 30, cWhite, cBlack);
+  a.gotoPos({group: 1, atom:175});
   while (a.areWeAtEnd() == false) {
+    console.log(a.getCurrentBookIndicator());
     let b = a.renderNextPage();
     debugger;
-    console.log(b);
+    // console.log(b);
+    console.log(a.getProgress());
+    console.log(a.getCurrentBookIndicator())
   }
 
 

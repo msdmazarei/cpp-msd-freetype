@@ -2,14 +2,7 @@
 #include "renderer/book_renderer.hpp"
 // #include <emscripten.h>
 #include <sstream>
-
-// em++ -std=c++1z -I BookReader/ -I libs -I. -I ./defs -I ./renderer/
-// `pkg-config harfbuzz freetype2 --cflags` -s USE_LIBPNG=1 -s WASM=1  -s
-// USE_FREETYPE=1  -s USE_HARFBUZZ=1 mainjs.cpp BookReader/*cpp defs/*cpp
-// renderer/*cpp -o _build/reader.html  -s
-// EXPORTED_FUNCTIONS='["_aTestFunc","_getBookFromBuf","_getBookAtomsCount","_getBookGroupsCount","_getRendererFormat","_getBookRenderer","_getRendererFormatTextColor","_getIndicatorPart","_renderNextPage","_getImageofPageResult","_initBookIndicator","_BookNextPart"]'
-// -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -s
-// DISABLE_EXCEPTION_CATCHING=0
+//em++ -std=c++1z -I BookReader/ -I libs -I. -I ./defs -I ./renderer/ `pkg-config harfbuzz freetype2 --cflags` -s USE_LIBPNG=1 -s WASM=1  -s USE_FREETYPE=1  -s USE_HARFBUZZ=1 mainjs.cpp BookReader/*cpp defs/*cpp renderer/*cpp -o _build/reader.html  -s EXPORTED_FUNCTIONS='["_aTestFunc","_getBookFromBuf","_getBookAtomsCount","_getBookGroupsCount","_getRendererFormat","_getBookRenderer","_getRendererFormatTextColor","_getIndicatorPart","_renderNextPage","_getImageofPageResult","_initBookIndicator","_BookNextPart","_getFontBuffer","_getFontBufferLen","_deleteRenderedPage","_getBookType","_is_first_atom","_is_last_atom","_getBookIndicatorPartOfPageResult","_deleteBytePoniter","_deleteBookPosIndicator","_getBookProgress", "_getBookTotalAtoms","_renderBackPage","_gotoBookPosIndicator"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -s DISABLE_EXCEPTION_CATCHING=0 -g4 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 
 extern "C" {
 extern Book *getBookFromBuf(BYTE *buf, DWORD len) {
   return Book::deserialize(len, buf);
@@ -106,14 +99,12 @@ extern BYTE is_first_atom(Book *b, BookPosIndicator *ind) {
 extern BYTE is_last_atom(Book *b, BookPosIndicator *ind) {
   return b->is_last_atom(*ind);
 }
-extern WORD getBookType(Book *b){
-  return b->getBookType();
-}
-extern WORD deleteBookPosIndicator(BookPosIndicator *p){
+extern WORD getBookType(Book *b) { return b->getBookType(); }
+extern WORD deleteBookPosIndicator(BookPosIndicator *p) {
   delete p;
   return 1;
 }
-extern WORD deleteRenderedPage(MsdBookRendererPage *p){
+extern WORD deleteRenderedPage(MsdBookRendererPage *p) {
   delete p;
   return 1;
 }
@@ -141,9 +132,16 @@ getBookIndicatorPartOfPageResult(MsdBookRendererPage *p) {
   return new BookPosIndicator(p->getEndPagePointer());
 }
 
-extern WORD deleteBytePoniter(BYTE *p){
+extern WORD deleteBytePoniter(BYTE *p) {
   delete p;
   return 1;
+}
+extern DWORD getBookTotalAtoms(Book *b) { return b->getTotalAtoms(); }
+extern DWORD getBookProgress(Book *b, BookPosIndicator *ind) {
+  return b->progress(*ind);
+}
+extern BookPosIndicator * gotoBookPosIndicator(WORD group,WORD atom){
+  return new BookPosIndicator({group,atom});
 }
 extern int aTestFunc(int i) { return i + 3285; }
 }

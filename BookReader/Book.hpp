@@ -45,6 +45,7 @@ protected:
   BookPosIndicator lastAtom;
   BookPosIndicator firstAtom;
   BookContent Contents;
+  DWORD totalAtoms;
 
   List<BYTE> *serialize_group(Vector<BookAtom *> &atoms,
                               BookAtomGroup<BookAtom> *group);
@@ -56,10 +57,10 @@ public:
   Book(BookType book_type, Vector<BookAtomGroup<BookAtom> *> grps)
       : booktype(book_type), groups(grps) {
     firstAtom = nextAtom(BookPosIndicator());
-    lastAtom = BookPosIndicator({0,0});
+    lastAtom = BookPosIndicator({0, 0});
     auto groups = decompose();
-    int lastgroupindex = groups.size()-1;
-    for (;lastgroupindex > -1;lastgroupindex--) {
+    int lastgroupindex = groups.size() - 1;
+    for (; lastgroupindex > -1; lastgroupindex--) {
       auto atoms = groups[lastgroupindex]->decompose();
       if (atoms.size() == 0) {
 
@@ -67,11 +68,26 @@ public:
       } else {
         lastAtom =
             BookPosIndicator({(WORD)lastgroupindex, (WORD)atoms.size() - 1});
-            break;
+        break;
       }
     }
-    std::cout << lastgroupindex;
+    // calculate total atoms
+    totalAtoms = 0;
+    for (auto g : groups) {
+      totalAtoms += g->decompose().size();
+    }
   };
+  DWORD getTotalAtoms() { return totalAtoms; }
+  DWORD progress(BookPosIndicator ind) {
+    DWORD p = 0;
+    auto groups = decompose();
+    if (ind.size() == 2) {
+      for (int i = 0; i < ind[0] ; i++)
+        p += groups[i]->decompose().size();
+      p += ind[1];
+    }
+    return p;
+  }
   bool is_last_atom(BookPosIndicator ind) {
     if (ind.size() == 2)
       return (ind[0] >= lastAtom[0] && ind[1] >= lastAtom[1]);
