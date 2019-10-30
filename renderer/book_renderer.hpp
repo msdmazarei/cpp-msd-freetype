@@ -30,7 +30,9 @@ typedef struct BookRendererError_ {
   BookRendererFunc fn;
   BookRendererError error;
 } BookRendererError_t;
+
 class MsdBookRendererPage;
+class VirtualMsdBookRendererPage;
 class BookRenderer {
 protected:
   Book *book;
@@ -53,8 +55,10 @@ public:
   void setBookRendererFormat(BookRendererFormat *newBookRendererFormat) {
     rendererFormat = newBookRendererFormat;
   }
+  Book * getBook(){return book;}
   BookPosIndicator getBookPointer() { return bookPointer; }
 
+  Vector<BookPosIndicator> getPageIndicators();
   MsdBookRendererPage
   //, BookPosIndicator>
   renderMsdFormatPageAtPointFW(Vector<WORD> pointer);
@@ -132,6 +136,119 @@ public:
       break;
     }
   }
+};
+
+class VirtualMsdBookRendererLine {
+protected:
+  Book *book;
+  BookRendererFormat *rendererFormat;
+  BookPosIndicator startLinePosInd;
+  BookPosIndicator endLinePosInd;
+  WORD pageWidth;
+
+  Vector<BookAtom *> lineAtoms;
+  Vector<BookAtomGroup<BookAtom> *> lineGroups;
+
+  Vector<TextImage *> atomImages;
+  Vector<BookPosIndicator> atomPosInd;
+
+  RGBAImage *lineImagePtr;
+  BookRenderer *bookRenderer;
+  RenderDirection rDirection;
+  int maxImageHeight;
+  int maxBaseLine;
+
+public:
+  VirtualMsdBookRendererLine(Book *book, Vector<WORD> pointer, WORD pageWidth,
+                             BookRenderer *bookRenderer,
+                             RenderDirection rDirection)
+      : book(book), startLinePosInd(pointer), pageWidth(pageWidth),
+        bookRenderer(bookRenderer), rDirection(rDirection), lineImagePtr(NULL),
+        maxImageHeight(0) , maxBaseLine(0){
+    MLOG("MsdBookRendererLine Constructor Called.");
+  }
+  //   MsdBookRendererLine(Book *book) : book(book), rendererFunc(NULL){};
+  //   MsdBookRendererLine(TextImage *(&rendererFunc)(
+  //       BookAtomGroup<BookAtom> *bookatomGroup, BookAtom *bookatom))
+  //       : rendererFunc(rendererFunc) {}
+
+  Vector<BookPosIndicator> getAtomPointersForALine() {
+    MLOG("getAtomPointersForALine called.");
+    List<BookAtom *> l_lineAtoms;
+    // List<BookAtomGroup<BookAtom> *> l_lineGroups;
+    // List<TextImage *> l_atomImages;
+    // List<BookPosIndicator> l_atomPosInd;
+
+    BookPosIndicator tmpPos = startLinePosInd;
+    WORD cW = 0;
+    while (true) {
+      MLOG("in loop getting group_and_atom");
+      auto group_and_atom = book->getGroupAtomByPointer(tmpPos);
+      MLOG(" group and atom returned as tuple");
+      auto groupPtr = std::get<0>(group_and_atom);
+      auto atomPtr = std::get<1>(group_and_atom);
+      MLOG("group and atom extracted");
+      if (atomPtr->getAtomType() == BookAtomType_Control_NewLine) {
+        MLOG("NEW LINE ATOM");
+        if (l_lineAtoms.size() == 0) {
+          try {
+            if (rDirection == RenderDirection_Forward)
+              tmpPos = book->nextAtom(tmpPos);
+            else
+              tmpPos = book->prevAtom(tmpPos);
+          } catch (const BookError_t &e) {
+            if (e.error == BookError_NextAtomNotExists ||
+                e.error == BookError_PrevAtomNotExists)
+              break;
+          }
+
+          continue;
+        } else
+          break;
+      }
+      MLOG("RENDERING ATOM");
+      auto txtImgPtr = bookRenderer->renderAtom(groupPtr, atomPtr);
+      MLOG("ATOM RENDERERD");
+      auto atomImageWidth = txtImgPtr->image.get_width();
+
+      if (cW + atomImageWidth > pageWidth - 1)
+        break;
+      cW += atomImageWidth;
+
+      maxImageHeight = MAXVAL(txtImgPtr->image.get_height(), maxImageHeight);
+      maxBaseLine = MAXVAL(txtImgPtr->base_line, maxBaseLine);
+      l_lineAtoms.push_back(atomPtr);
+      // l_lineGroups.push_back(groupPtr);
+      // l_atomImages.push_back(txtImgPtr);
+      try {
+        if (rDirection == RenderDirection_Forward)
+          tmpPos = book->nextAtom(tmpPos);
+        else
+          tmpPos = book->prevAtom(tmpPos);
+      } catch (const BookError_t &e) {
+        if (e.error == BookError_NextAtomNotExists ||
+            e.error == BookError_PrevAtomNotExists)
+          break;
+      }
+    }
+    endLinePosInd = tmpPos;
+
+    // atomImages = Vector<TextImage *>(l_atomImages.begin(), l_atomImages.end());
+    return Vector<BookPosIndicator>();
+  }
+  WORD getMaxHeight() {
+    return maxImageHeight;
+  }
+  WORD getMaxBaseLine() {
+    return maxBaseLine;
+    WORD max_baseline = 0;
+    for (auto c : atomImages)
+      max_baseline = MAXVAL(c->base_line, max_baseline);
+    return max_baseline;
+  }
+  Vector<WORD> getEndLinePointer() { return endLinePosInd; }
+  // Vector<BookAtom *> getBookAtoms() { return lineAtoms; }
+  // Vector<BookAtomGroup<BookAtom> *> getBookAtomGroups() { return lineGroups; }
 };
 
 class MsdBookRendererLine {
@@ -413,7 +530,7 @@ public:
       : book(book), pageWidth(pageWidth), pageHeight(pageHeight),
         bookRenderer(bookRenderer), renderDirection(renderDirection),
         startPagePosInd(startPagePosInd), lineSpace(lineSpace) {
-    //std::cout << "Page renderer Called" << std::endl;
+    // std::cout << "Page renderer Called" << std::endl;
 
     MLOG("");
     if (startPagePosInd.size() == 0)
@@ -435,7 +552,7 @@ public:
       MLOG("RENDERING LINE");
       RGBAImage lineImage = line->render();
       MLOG("LINE RENDERERD");
-      if (line->getMaxHeight() + current_height + lineSpace > pageHeight) {
+      if (line->getMaxHeight() + current_height + lineSpace > pageHeight - 1) {
         break;
       }
 
@@ -480,7 +597,7 @@ public:
           book, tmpPos, pageWidth, bookRenderer, renderDirection);
       line->getAtomPointersForALine();
       WORD lineMaxHeight = line->getMaxHeight();
-      if (cH + lineMaxHeight + lineSpace > pageHeight)
+      if (cH + lineMaxHeight + lineSpace > pageHeight - 1)
         break;
       lines.push_back(line);
       tmpPos = line->getEndLinePointer();
@@ -494,6 +611,97 @@ public:
   }
 
   RGBAImage getImage() { return pageImage; }
+};
+class VirtualMsdBookRendererPage {
+protected:
+  Book *book;
+  WORD pageWidth, pageHeight;
+  BookRenderer *bookRenderer;
+  RenderDirection renderDirection;
+  BookPosIndicator startPagePosInd;
+  BookPosIndicator endPagePosInd;
+  List<VirtualMsdBookRendererLine *> lines;
+  WORD lineSpace;
+
+public:
+  VirtualMsdBookRendererPage(Book *book, WORD pageWidth, WORD pageHeight,
+                             BookPosIndicator startPagePosInd,
+                             RenderDirection renderDirection,
+                             BookRenderer *bookRenderer, WORD lineSpace)
+      : book(book), pageWidth(pageWidth), pageHeight(pageHeight),
+        bookRenderer(bookRenderer), renderDirection(renderDirection),
+        startPagePosInd(startPagePosInd), lineSpace(lineSpace) {
+    // std::cout << "Page renderer Called" << std::endl;
+
+    MLOG("");
+    if (startPagePosInd.size() == 0)
+      startPagePosInd = book->nextAtom(startPagePosInd);
+    MLOG("")
+    BookPosIndicator tmpPos = getTrueStartPoint();
+    if (renderDirection == RenderDirection_Backward)
+      endPagePosInd = tmpPos;
+    WORD current_height = 0;
+    while (true) {
+      MLOG("GET A LINE");
+      VirtualMsdBookRendererLine *line = new VirtualMsdBookRendererLine(
+          book, tmpPos, pageWidth, bookRenderer, RenderDirection_Forward);
+      line->getAtomPointersForALine();
+      MLOG("LINE RENDERERD");
+      if (line->getMaxHeight() + current_height + lineSpace > pageHeight - 1) {
+        break;
+      }
+
+      lines.push_back(line);
+      tmpPos = line->getEndLinePointer();
+
+      current_height += line->getMaxHeight() + lineSpace;
+      try {
+        // only to check is book finished or not.
+        if (renderDirection == RenderDirection_Forward) {
+          tmpPos = book->nextAtom(tmpPos);
+          tmpPos = book->prevAtom(tmpPos);
+
+        } else {
+          tmpPos = book->prevAtom(tmpPos);
+          tmpPos = book->nextAtom(tmpPos);
+        }
+      } catch (const BookError_t &e) {
+        MLOG("EXCEPTION HAPPEN. ");
+        MLOG(e.error);
+        if (e.error == BookError_NextAtomNotExists ||
+            e.error == BookError_PrevAtomNotExists)
+          break;
+      }
+    }
+    if (renderDirection == RenderDirection_Forward)
+      endPagePosInd = tmpPos;
+  }
+  BookPosIndicator getEndPagePointer() { return endPagePosInd; }
+
+  BookPosIndicator getTrueStartPoint() {
+    if (renderDirection == RenderDirection_Forward)
+      return startPagePosInd;
+
+    BookPosIndicator tmpPos = startPagePosInd;
+    WORD cH = 0;
+    List<VirtualMsdBookRendererLine *> lines;
+    while (true) {
+      VirtualMsdBookRendererLine *line = new VirtualMsdBookRendererLine(
+          book, tmpPos, pageWidth, bookRenderer, renderDirection);
+      line->getAtomPointersForALine();
+      WORD lineMaxHeight = line->getMaxHeight();
+      if (cH + lineMaxHeight + lineSpace > pageHeight - 1)
+        break;
+      lines.push_back(line);
+      tmpPos = line->getEndLinePointer();
+      cH += lineMaxHeight + lineSpace;
+    }
+    if (lines.size() > 0) {
+      auto last_line = lines.back();
+      return last_line->getEndLinePointer();
+    }
+    throw "No LINE FOUND.";
+  }
 };
 
 MsdBookRendererPage
@@ -514,4 +722,20 @@ BookRenderer::renderMsdFormatPageAtPointBack(Vector<WORD> pointer) {
   // return std::make_tuple(rtn, pageEndPointer);
   return rtn;
 };
+
+Vector<BookPosIndicator> BookRenderer::getPageIndicators() {
+
+  auto firstAtom = book->nextAtom(BookPosIndicator());
+  List<BookPosIndicator> l;
+  BookPosIndicator lastInd = firstAtom;
+  while (book->is_last_atom(lastInd) == false) {
+    l.push_back(lastInd);
+    WORD lineSpace = rendererFormat->getLineSpace();
+    auto b =
+        VirtualMsdBookRendererPage(book, pageWidth, pageHeight, lastInd,
+                                   RenderDirection_Forward, this, lineSpace);
+    lastInd = b.getEndPagePointer();
+  }
+  return Vector<BookPosIndicator>(l.begin(), l.end());
+}
 #endif

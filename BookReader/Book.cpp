@@ -1,5 +1,8 @@
 #include "Book.hpp"
+#include "BookAtomVoice.hpp"
+#include "BookVoiceAtomGroup.hpp"
 #include <iostream>
+#include <string.h>
 Vector<BookAtom *> uniqAtoms(Vector<BookAtomGroup<BookAtom> *> &groups) {
   List<BookAtom *> uniqAtoms;
   for (auto g : groups) {
@@ -191,6 +194,13 @@ BookAtomGroup<BookAtom> *Book::deserialize_group(BYTE *buf, DWORD ind,
     rtn = new BookDirectionGroup<BookAtom>(BookTextDirection_RTL, groupAtoms);
 
     break;
+  case 7: {
+    auto voiceAtoms = Vector<BookAtomVoice *>(groupAtoms.size());
+    for (int i = 0; i < groupAtoms.size(); i++)
+      voiceAtoms[i] = (BookAtomVoice *)groupAtoms[i];
+
+    rtn = (BookAtomGroup<BookAtom> *)new BookVoiceAtomGroup(voiceAtoms);
+  } break;
   default:
     break;
   }
@@ -225,7 +235,17 @@ BookAtom *Book::deserialize_atom(BYTE *buf, DWORD ind) {
     }
     rtn = new BookAtomText(txt);
   }; break;
-
+  case BookAtomType_Voice: {
+    auto audioFormat = *(buf + ind);
+    ind++;
+    auto duration = getDWORD(buf + ind);
+    ind += 4;
+    auto remainSize = atomSize - 4 - 1 - 4-1 ; //atomtype  format duration  atom len
+    BYTE *spBuffer = new BYTE[remainSize];
+    memcpy(spBuffer, buf + ind, remainSize);
+    rtn = new BookAtomVoice(duration, remainSize,
+                            (VoiceAtomBinFormat)audioFormat, spBuffer);
+  }; break;
   default:
     break;
   }
@@ -303,7 +323,50 @@ Book *Book::deserialize(DWORD len, BYTE *buf) {
       parsedGroup += group_size;
     }
     Vector<BookAtomGroup<BookAtom> *> vbg(groups.begin(), groups.end());
-    return new Book((BookType)booktype, vbg);
+
+    // content table
+    DWORD ContentTableLen = 0;
+    for (int i = 3; i > -1; i--) {
+      if (key_len - 4 == 0)
+        ContentTableLen = (ContentTableLen << 8) + (*(buf + ind + i));
+      else
+        ContentTableLen = (ContentTableLen << 8) +
+                          (*(buf + ind + i) ^ enc_key[i % (key_len - 4)]);
+    }
+    if (ContentTableLen + ind > len)
+      return NULL;
+    // totaly decrypt content table
+    if (key_len - 4 != 0)
+      for (int i = 0; i < ContentTableLen; i++)
+        *(buf + ind + i) = *(buf + ind + i) ^ enc_key[i % (key_len - 4)];
+    ind += 4; /*goto first item*/
+    DWORD parsedContentLen = 0;
+    List<BookContent> contnet;
+
+    while (parsedContentLen < ContentTableLen - 4) {
+
+      WORD parentIndex = getWORD(buf + ind + parsedContentLen);
+      parsedContentLen += 2;
+      DWORD groupIndex = getDWORD(buf + ind + parsedContentLen);
+      parsedContentLen += 4;
+      DWORD atomIndex = getDWORD(buf + ind + parsedContentLen);
+      parsedContentLen += 4;
+      WORD contentCount = getWORD(buf + ind + parsedContentLen);
+      parsedContentLen += 2;
+      DWORD groups_byte_index = 0;
+
+      Vector<BookAtomGroup<BookAtom> *> contentGroups(contentCount);
+      for (int i = 0; i < contentCount; i++) {
+        contentGroups[i] =
+            Book::deserialize_group(buf, ind + parsedContentLen, v_book_atoms);
+        parsedContentLen += getDWORD(buf + ind + parsedContentLen);
+      }
+      auto pos = BookPosIndicator({(WORD)groupIndex, (WORD)atomIndex});
+      auto bC = BookContent(contentGroups, pos, parentIndex);
+      contnet.push_back(bC);
+    }
+    Vector<BookContent> v_content(contnet.begin(), contnet.end());
+    return new Book((BookType)booktype, vbg, v_content);
   }
   return NULL;
 }

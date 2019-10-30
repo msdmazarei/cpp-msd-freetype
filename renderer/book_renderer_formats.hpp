@@ -31,6 +31,7 @@ public:
   BYTE *getFontBuffer() { return fontBuffer; }
   WORD getFontBufferSize() { return fontBufferLen; }
   WORD getFontSize() { return fontSize; }
+  WORD getLineSpace() { return 15;}
 };
 
 #endif

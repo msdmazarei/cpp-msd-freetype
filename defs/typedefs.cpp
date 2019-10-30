@@ -25,12 +25,32 @@ Vector<BYTE> UTF8toByteBuffer(UTF8String str) {
   return v;
 }
 
-List<BYTE> DWORD2Bytes(DWORD num){
+List<BYTE> DWORD2Bytes(DWORD num) {
   List<BYTE> rtn;
-  for(int i=sizeof(DWORD)-1;i>-1;i--)
-  {
-    BYTE a = GetByteN(num,i);
+  for (int i = sizeof(DWORD) - 1; i > -1; i--) {
+    BYTE a = GetByteN(num, i);
     rtn.push_back(a);
   }
   return rtn;
+}
+
+WORD getWORD(BYTE *buf) {
+  WORD rtn = 0;
+  rtn = *buf;
+  rtn += ((*(buf + 1)) << 8);
+  return rtn;
+}
+DWORD getDWORD(BYTE *buf) {
+  DWORD rtn = 0;
+  for (int i = 3; i > -1; i--)
+    rtn = (rtn << 8) + *(buf + i);
+  return rtn;
+}
+
+long ceil(double num) {
+  long inum = (long)num;
+  if (num == (double)inum) {
+    return inum;
+  }
+  return inum + 1;
 }

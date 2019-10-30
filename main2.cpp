@@ -57,16 +57,30 @@ int main(int argc, char **argv) {
   auto backC = PixelColor(0, 0, 0, 255);
   auto selectedTextBackColor = PixelColor(0, 0, 255, 255);
   BookRendererFormat bookFormat(foreTextC, backC, foreTextC,
-                                selectedTextBackColor, 12, fontPtr, fontlength);
+                                selectedTextBackColor, 30, fontPtr, fontlength);
 
-  BookRenderer bookRenderer(b1, &bookFormat, 1000, 500);
+  BookRenderer bookRenderer(b1, &bookFormat, 500, 500);
   BookPosIndicator bpi = b1->nextAtom(BookPosIndicator());
-  for (int i = 0; i < 10; i++) {
+  auto poses = bookRenderer.getPageIndicators();
+  int j=0;
+
+  for (auto p:poses){
+    std::cout << "G: "<< p[0] << " A: " << p[1]<< std::endl;
+      auto rtn = bookRenderer.renderMsdFormatPageAtPointFW(p);
+    MsdBookRendererPage *r = new MsdBookRendererPage(rtn);
+    rtn.getImage().write("p_pageImage_"+to_string(j)+".png");
+    j++;  
+  }
+  while (b1->is_last_atom(bpi) == 0) {
     std::cout << "isFisrtAtom:" << b1->is_first_atom(bpi)
               << " isLastAtom:" << b1->is_last_atom(bpi) << std::endl;
+    std::cout << "G:" << (int) bpi[0] << "A:" <<(int) bpi[1] << std::endl;
     auto rtn = bookRenderer.renderMsdFormatPageAtPointFW(bpi);
     MsdBookRendererPage *r = new MsdBookRendererPage(rtn);
-    rtn.getImage().write("pageImage.png");
+    auto img = rtn.getImage();
+    img.m_info;
+    img.write("pageImage_"+to_string(j)+".png");
+    j++;  
     bpi = r->getEndPagePointer();
   }
 

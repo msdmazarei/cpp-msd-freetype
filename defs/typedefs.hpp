@@ -8,13 +8,18 @@
 #include <vector>
 
 #define GetByteN(x, N) ((x >> (N * 8)) & 0xff);
-#define MLOG(x) ;//std::cout << __FILE__ << ":" << __LINE__ << " " <<x << std::endl;
-#define MLOG2(x, y) ;                                                             \
-  //std::cout << __FILE__ << ":" << __LINE__ <<" "<< x << " " << y << std::endl;
+#define MLOG(x)                                                                \
+  ; // std::cout << __FILE__ << ":" << __LINE__ << " " <<x << std::endl;
+#define MLOG2(x, y)                                                            \
+  ;                                                                            \
+  // std::cout << __FILE__ << ":" << __LINE__ <<" "<< x << " " << y <<
+  // std::endl;
 typedef unsigned char BYTE;
 typedef unsigned int WORD;
 typedef unsigned long DWORD;
-
+typedef DWORD VOICEDURATION;
+typedef unsigned long ULONG;
+typedef short INT16;
 enum BookTextDirection { BookTextDirection_RTL = 0, BookTextDirection_LTR = 1 };
 enum BookType { BookType_MSDFORMAT = 0, BookType_PDF = 1, BookType_Voice = 2 };
 enum BookAtomType {
@@ -40,4 +45,7 @@ typedef Vector<WORD> BookPosIndicator;
 WORD utf8clen(UTF8String &str);
 Vector<BYTE> UTF8toByteBuffer(UTF8String str);
 List<BYTE> DWORD2Bytes(DWORD);
+WORD getWORD(BYTE *buf);
+DWORD getDWORD(BYTE *buf);
+long ceil(double num);
 #endif

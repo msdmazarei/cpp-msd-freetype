@@ -7,9 +7,17 @@
 
 class BookContent {
 private:
-  Vector<uint16_t> Index;
-  Vector<BookDirectionGroup<BookAtom> *> title;
-  Vector<BookContent *> subContents;
+  Vector<BookAtomGroup<BookAtom> *> title;
+  BookPosIndicator indicator;
+  WORD parentIndex;
+
+public:
+  BookContent(Vector<BookAtomGroup<BookAtom> *> title,
+              BookPosIndicator indicator, WORD parentIndex)
+      : title(title), indicator(indicator), parentIndex(parentIndex) {}
+  Vector<BookAtomGroup<BookAtom> *> getTitle() { return title; }
+  BookPosIndicator getPos() { return indicator; }
+  WORD getParentIndex() { return parentIndex; }
 };
 
 enum BookFunc {
@@ -44,7 +52,7 @@ protected:
   Vector<BookAtomGroup<BookAtom> *> groups;
   BookPosIndicator lastAtom;
   BookPosIndicator firstAtom;
-  BookContent Contents;
+  Vector<BookContent> Contents;
   DWORD totalAtoms;
 
   List<BYTE> *serialize_group(Vector<BookAtom *> &atoms,
@@ -54,8 +62,9 @@ public:
   ClassName getType() override { return ClassName_Book; }
   bool is_render_decomposable() override { return true; };
   Vector<BookAtomGroup<BookAtom> *> decompose() override { return groups; };
-  Book(BookType book_type, Vector<BookAtomGroup<BookAtom> *> grps)
-      : booktype(book_type), groups(grps) {
+  Book(BookType book_type, Vector<BookAtomGroup<BookAtom> *> grps,
+       Vector<BookContent> contents)
+      : booktype(book_type), groups(grps), Contents(contents) {
     firstAtom = nextAtom(BookPosIndicator());
     lastAtom = BookPosIndicator({0, 0});
     auto groups = decompose();
@@ -82,7 +91,7 @@ public:
     DWORD p = 0;
     auto groups = decompose();
     if (ind.size() == 2) {
-      for (int i = 0; i < ind[0] ; i++)
+      for (int i = 0; i < ind[0]; i++)
         p += groups[i]->decompose().size();
       p += ind[1];
     }
@@ -99,6 +108,50 @@ public:
       return ind[0] <= firstAtom[0] && ind[1] <= firstAtom[1];
     else
       return false;
+  }
+  signed char compare(BookPosIndicator a, BookPosIndicator b) {
+    int group_a = -1, group_b = -1, atom_a = -1, atom_b = -1;
+    if (a.size() > 0)
+      group_a = a[0];
+    if (b.size() > 0)
+      group_b = b[0];
+    if (a.size() > 1)
+      atom_a = a[1];
+    if (b.size() > 1)
+      atom_b = b[1];
+    if (group_a == group_b && atom_a == atom_b)
+      return 0;
+    if (group_a > group_b)
+      return 1;
+    if (group_a < group_b)
+      return -1;
+    if (atom_a > atom_b)
+      return 1;
+    if (atom_a < atom_b)
+      return -1;
+    return 0;
+  }
+  template <typename T>
+  List<T> mapOnAtoms(BookPosIndicator from_, BookPosIndicator to_,
+                     T (*mapFunc)(BookAtom *a)) {
+    if (from_.size() != 2)
+      throw "from_ has bad size.";
+    if (to_.size() != 2)
+      throw "to_ has bas size.";
+    auto currentPointer = from_;
+    List<T> rtn;
+    auto groups = decompose();
+    while (true) {
+      auto compare_current_pointer = compare(currentPointer, to_);
+      if (compare_current_pointer == -1)
+        break;
+      auto current_group_i = currentPointer[0];
+      auto current_atom_i = currentPointer[1];
+      auto current_group = groups[current_group_i];
+      auto current_atom = current_group[current_atom_i];
+      rtn.push_back(mapFunc(current_atom));
+    }
+    return rtn;
   }
   BookType getBookType() { return booktype; }
   bool is_book_renderable() {
@@ -132,6 +185,14 @@ public:
       return group_ptr;
 
     throw BookError_t{BookFunc_prevGroup, BookError_PrevGroupNotExists};
+  }
+  BookAtom *getAtom(BookPosIndicator ind) {
+    auto group_i = ind[0];
+    auto atom_i = ind[1];
+    auto groups = decompose();
+    auto group = groups[group_i];
+    auto atom = group->decompose()[i];
+    return atom;
   }
   Vector<WORD> nextAtom(Vector<WORD> pointer) {
     MLOG(" - next ATOM");
@@ -225,6 +286,7 @@ public:
       throw BookError_t{BookFunc_getGroupAtomByPointer, BookError_BadPointer};
     }
   }
+  Vector<BookContent> getBookContent() { return Contents; }
 
   List<BYTE> *serialize_binary() override;
   Book deserialize_from_bin(DWORD len, BYTE *buf) override;
