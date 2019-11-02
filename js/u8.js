@@ -76,6 +76,21 @@ var msdreader = {
       Module.cwrap('getBookContentLength', 'number', ['number']),
   renderNextPages:
       Module.cwrap('renderNextPages', 'number', ['number', 'number', 'number']),
+  getBookPlayer: Module.cwrap('getBookPlayer', 'number', ['number']),
+  getVoiceDuration: Module.cwrap(
+      'getVoiceDuration', 'number', ['number', 'number', 'number']),
+  deleteBookPlayer: Module.cwrap('deleteBookPlayer', 'number', ['number']),
+  getVoiceAtomWrapper:
+      Module.cwrap('getVoiceAtomWrapper', 'number', ['number', 'number']),
+  deleteVoiceAtomWrapper:
+      Module.cwrap('deleteVoiceAtomWrapper', 'number', ['number']),
+  getVoiceSampleRate: Module.cwrap('getVoiceSampleRate', 'number', ['number']),
+  getVoiceChannelsCount:
+      Module.cwrap('getVoiceChannelsCount', 'number', ['number']),
+  get10Seconds: Module.cwrap('get10Seconds', 'number', ['number', 'number']),
+  getFirstAtom: Module.cwrap('getFirstAtom', 'number', ['number']),
+  getLastAtom: Module.cwrap('getLastAtom', 'number', ['number'])
+
 
 }
 
@@ -123,7 +138,24 @@ function _arrayBufferToBase64(buffer) {
   return window.btoa(binary);
 }
 
-
+class audioBook {
+  constructor(bookbuf) {
+    debugger;
+    this.bookbuf = bookbuf;
+    let bookheapPtr = copyBufferToHeap(bookbuf);
+    this.bookPtr = msdreader.getBookFromBuf(bookheapPtr, bookbuf.length);
+    freeHeap(bookheapPtr);  // free heap from bin buffer;
+    this.bookPlayerPtr = msdreader.getBookPlayer(this.bookPtr);
+    this.firstAtom = msdreader.getFirstAtom(this.bookPtr);
+    this.lastAtom = msdreader.getLastAtom(this.bookPtr);
+  }
+  getDuration() {
+    if (this.bookDuration) return this.bookDuration;
+    this.bookDuration = msdreader.getVoiceDuration(
+        this.bookPlayerPtr, this.firstAtom, this.lastAtom);
+    return this.bookDuration;
+  }
+};
 class book {
   // fontHeapPtr = null;
   // fontSize = 42;
@@ -315,8 +347,14 @@ class book {
   }
 }
 
-
 async function main() {
+  let bookbuf = await getFont('book1.msd');
+  debugger;
+  bookbuf = new Uint8Array(bookbuf);
+  let ab = new audioBook(bookbuf);
+  console.log(ab.getDuration());
+}
+async function main1() {
   book64_1 =
       'AABrAQAAxmlzUf9K7CnNuqvy++NGfMJU+Bvo5412Wi5jM5/JmmYyDbcxWKNaJV0FF1jpXtSrss3Gm7RUEQ6CdEEhPdyHcOk+oUHh/Gc+AX6X6txrlo84XCrssDv7Mq88VOwY21wCGv5D+/qqOvsp0eYFPHyUddi+YYn5XLuomQ+VsevxswXv9wDpoTrlygvL0EhHZL0fIx6oHHtkxRRzWsVeS3ljO3BkJBGeCdyq1KzyGxCvOzPN41BIRxVcu28iGbqbffUL4RocfyP4KfikGxO1yk7omDI44HlNPTS8X053+stsBayGISuqGlWivnC1czsEXNM2lLOv4vDknk8yFUn9gk6pCHDUsoopVEiaCrzVDhioRKxb845M1y2bCULlBsQzr82jhH8trdR2R94yHOxKxDD2ICOFbPuyBwT07Au5ILqGwz4F8ezZZzO3mVCj4xTT2TT3XqDyEKj2BZQBvrS8RHj6SWnmI9Aa2mmCaXNR7krsKc2JrfK/5UZbxFS9HejvjXZaLkMzn8GaZjIN/zdYuVolXQU5Xulx0quVy8a2slQ2CII1RyEF2od16T6hJdxpc1H6SuwpzKur8vvhRnzDVPob6eeOdl4u';
 

@@ -3,15 +3,17 @@
 #include "renderer/book_renderer.hpp"
 // #include <emscripten.h>
 #include <sstream>
-// em++ -std=c++1z -I BookReader/ -I libs -I. -I ./defs -I ./renderer/
-// `pkg-config harfbuzz freetype2 --cflags` -s USE_LIBPNG=1 -s WASM=1  -s
-// USE_FREETYPE=1  -s USE_HARFBUZZ=1 mainjs.cpp BookReader/*cpp defs/*cpp
-// renderer/*cpp -o _build/reader.html  -s
+// export
+// PKG_CONFIG_PATH=/home/msd/projects/mpg123-1.25.12/wasmbuild/lib/pkgconfig
+// em++ -std=c++1z -I BookReader/ -I libs -I. -I ./defs -I ./renderer/ -I
+// ./player/ `pkg-config harfbuzz freetype2 libmpg123 --cflags`
+// -L/home/msd/projects/mpg123-1.25.12/wasmbuild/lib -llibmpg123 -s
+// DISABLE_EXCEPTION_CATCHING=0 -s USE_LIBPNG=1 -s WASM=1  -s USE_FREETYPE=1  -s
+// USE_HARFBUZZ=1 mainjs.cpp BookReader/*cpp defs/*cpp renderer/*cpp -o
+// _build/reader.html  -s
 // EXPORTED_FUNCTIONS='["_aTestFunc","_getBookFromBuf","_getBookAtomsCount","_getBookGroupsCount","_getRendererFormat","_getBookRenderer","_getRendererFormatTextColor","_getIndicatorPart","_renderNextPage","_getImageofPageResult","_initBookIndicator","_BookNextPart","_getFontBuffer","_getFontBufferLen","_deleteRenderedPage","_getBookType","_is_first_atom","_is_last_atom","_getBookIndicatorPartOfPageResult","_deleteBytePoniter","_deleteBookPosIndicator","_getBookProgress",
-// "_getBookTotalAtoms","_renderBackPage","_gotoBookPosIndicator","_getBookPosIndicators","_getBookContentAt"]'
-// -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -s
-// DISABLE_EXCEPTION_CATCHING=0 -g4 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -O3
-
+// "_getBookTotalAtoms","_renderBackPage","_gotoBookPosIndicator","_getBookPosIndicators","_getBookContentAt","_getBookContentLength","_renderNextPages","_getBookPlayer","_getVoiceDuration","_deleteBookPlayer","_getVoiceAtomWrapper","_deleteVoiceAtomWrapper","_getVoiceSampleRate","_getVoiceChannelsCount","_get10Seconds"]'
+// -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]'
 extern "C" {
 extern Book *getBookFromBuf(BYTE *buf, DWORD len) {
   return Book::deserialize(len, buf);
@@ -246,7 +248,7 @@ extern BYTE *renderNextPages(BookRenderer *renderer, BookPosIndicator *ind,
 extern BookPlayer *getBookPlayer(Book *book) { return new BookPlayer(book); }
 extern DWORD getVoiceDuration(BookPlayer *bookPlayer, BookPosIndicator *f,
                               BookPosIndicator *t) {
-  bookPlayer->getDurationFromTo(*f, *t);
+  return bookPlayer->getDurationFromTo(*f, *t);
 }
 extern int deleteBookPlayer(BookPlayer *bookPlayer) {
   delete bookPlayer;
@@ -256,18 +258,37 @@ extern MpgWrapper *getVoiceAtomWrapper(BookPlayer *bookPlayer,
                                        BookPosIndicator *p) {
   return bookPlayer->getVoiceAtomWrapper(*p);
 }
+extern int deleteVoiceAtomWrapper(MpgWrapper *p) {
+  delete p;
+  return 0;
+}
 extern long getVoiceSampleRate(MpgWrapper *w) { return w->getRate(); }
 extern int getVoiceChannelsCount(MpgWrapper *w) { return w->getChannels(); }
+extern VOICEDURATION getVoiceAtomWrapperDuration(MpgWrapper *w) {
+  return w->getTotalSecods() * 1000;
+}
 extern BYTE *get10Seconds(MpgWrapper *w, VOICEDURATION fromMilliSecond) {
+  std::cout << "get10Seconds Called. fromMilli:" << fromMilliSecond << std::endl;
   auto r = w->get10Second(fromMilliSecond);
   auto buf = std::get<0>(r);
   auto buflen = std::get<1>(r) + 4 /*for spec size of buf*/;
+  std::cout << "get10Seconds buflen:" << buflen << "and buf:" <<(ULONG) buf << std::endl;  
   BYTE *rtn = new BYTE[buflen];
   for (int i = 0; i < 4; i++)
     rtn[i] = GetByteN(buflen, i);
   memcpy(rtn + 4, buf, buflen - 4);
-  free(buf);
+  std::cout << "memory copy done" << std::endl;
+  //dont free buf cause it is refer to pcm buffer;
+  // free(buf); 
+  std::cout << "get10Seconds Done. returns rtn: " <<(ULONG) rtn << "buflen:" << buflen
+            << std::endl;
   return rtn;
+}
+extern BookPosIndicator *getFirstAtom(Book *b) {
+  return new BookPosIndicator(b->getFirstAtom());
+}
+extern BookPosIndicator *getLastAtom(Book *b) {
+  return new BookPosIndicator(b->getLastAtom());
 }
 
 extern int aTestFunc(int i) { return i + 3285; }

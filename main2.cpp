@@ -6,6 +6,7 @@
 #include "BookReader/BookAtomText.hpp"
 #include "BookReader/BookDirectionGroup.hpp"
 #include "libs/utfcpp/source/utf8.h"
+#include "player/book_player.hpp"
 #include "renderer/book_renderer.hpp"
 #include <fstream>
 #include <iostream>
@@ -53,6 +54,17 @@ int main(int argc, char **argv) {
   // let the destructor do it.
   ifs.close();
 
+  BookPlayer bp(b1);
+  auto start_atom = b1->getFirstAtom();
+  auto last_atom = b1->getLastAtom();
+  auto durtion = bp.getDurationFromTo(start_atom, last_atom);
+  std::cout << "duration:" << durtion << std::endl;
+  auto soundWrapper = bp.getVoiceAtomWrapper(start_atom);
+  std::cout << "channels:" << soundWrapper->getChannels() << std::endl;
+  std::cout << "Rate:" << soundWrapper->getRate() << std::endl;
+  std::cout << "TotalSecondLength" << soundWrapper->getTotalSecods()<< std::endl;
+  auto bys = soundWrapper->get10Second(0);
+return 0;
   auto foreTextC = PixelColor(255, 255, 255, 255);
   auto backC = PixelColor(0, 0, 0, 255);
   auto selectedTextBackColor = PixelColor(0, 0, 255, 255);
@@ -62,25 +74,25 @@ int main(int argc, char **argv) {
   BookRenderer bookRenderer(b1, &bookFormat, 500, 500);
   BookPosIndicator bpi = b1->nextAtom(BookPosIndicator());
   auto poses = bookRenderer.getPageIndicators();
-  int j=0;
+  int j = 0;
 
-  for (auto p:poses){
-    std::cout << "G: "<< p[0] << " A: " << p[1]<< std::endl;
-      auto rtn = bookRenderer.renderMsdFormatPageAtPointFW(p);
+  for (auto p : poses) {
+    std::cout << "G: " << p[0] << " A: " << p[1] << std::endl;
+    auto rtn = bookRenderer.renderMsdFormatPageAtPointFW(p);
     MsdBookRendererPage *r = new MsdBookRendererPage(rtn);
-    rtn.getImage().write("p_pageImage_"+to_string(j)+".png");
-    j++;  
+    rtn.getImage().write("p_pageImage_" + to_string(j) + ".png");
+    j++;
   }
   while (b1->is_last_atom(bpi) == 0) {
     std::cout << "isFisrtAtom:" << b1->is_first_atom(bpi)
               << " isLastAtom:" << b1->is_last_atom(bpi) << std::endl;
-    std::cout << "G:" << (int) bpi[0] << "A:" <<(int) bpi[1] << std::endl;
+    std::cout << "G:" << (int)bpi[0] << "A:" << (int)bpi[1] << std::endl;
     auto rtn = bookRenderer.renderMsdFormatPageAtPointFW(bpi);
     MsdBookRendererPage *r = new MsdBookRendererPage(rtn);
     auto img = rtn.getImage();
-    img.m_info;
-    img.write("pageImage_"+to_string(j)+".png");
-    j++;  
+    // img.m_info;
+    img.write("pageImage_" + to_string(j) + ".png");
+    j++;
     bpi = r->getEndPagePointer();
   }
 

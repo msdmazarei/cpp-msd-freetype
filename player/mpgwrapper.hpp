@@ -73,11 +73,11 @@ public:
     if (to_second_milli > total_du)
       to_second_milli = total_du;
     if (from_second_milli > total_du) {
-      std::cout << "from>total duration" << std::endl;
+      std::cout << "from>total duration " << std::endl;
       return std::tuple<BYTE *, size_t>(NULL, 0);
     }
-    std::cout << "from_mili:" << from_second_milli
-              << "to_milli:" << to_second_milli << "total_du:" << total_du
+    std::cout << "from_mili: " << from_second_milli
+              << "to_milli: " << to_second_milli << "total_du: " << total_du
               << std::endl;
     auto chans = getChannels();
     auto sampleRate = getRate();
@@ -92,9 +92,9 @@ public:
     if (byteOffset_end % coeff != 0)
       byteOffset_end -= byteOffset_end % coeff;
 
-    std::cout << "all thing successfully done:"
-              << "OFF_START:" << byteOffset_start
-              << "OFF_END:" << byteOffset_end << "TOTAL SIZE:" << pcm_buf_len
+    std::cout << "all thing successfully done: "
+              << "OFF_START: " << byteOffset_start
+              << "OFF_END: " << byteOffset_end << "TOTAL SIZE: " << pcm_buf_len
               << std::endl;
     return std::tuple<BYTE *, size_t>((BYTE *)(pcm_buf + byteOffset_start),
                                       byteOffset_end - byteOffset_start);

@@ -143,13 +143,15 @@ public:
     auto groups = decompose();
     while (true) {
       auto compare_current_pointer = compare(currentPointer, to_);
-      if (compare_current_pointer == -1)
+      if (compare_current_pointer == 1)
         break;
       auto current_group_i = currentPointer[0];
       auto current_atom_i = currentPointer[1];
       auto current_group = groups[current_group_i];
-      auto current_atom = current_group[current_atom_i];
+      auto current_atom = current_group->decompose()[current_atom_i];
       rtn.push_back(mapFunc(current_atom));
+      if(compare_current_pointer==0) break; // we reach to the end
+      currentPointer = nextAtom(currentPointer);
     }
     return rtn;
   }
@@ -191,10 +193,13 @@ public:
     auto atom_i = ind[1];
     auto groups = decompose();
     auto group = groups[group_i];
-    auto atom = group->decompose()[i];
+    auto atoms = group->decompose();
+    auto atom = atoms[atom_i];
     return atom;
   }
-  Vector<WORD> nextAtom(Vector<WORD> pointer) {
+  BookPosIndicator getFirstAtom() { return firstAtom; }
+  BookPosIndicator getLastAtom() { return lastAtom; }
+  BookPosIndicator nextAtom(BookPosIndicator pointer) {
     MLOG(" - next ATOM");
     int group_pointer = -1;
     int atom_pointer = -1;
