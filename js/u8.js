@@ -89,8 +89,8 @@ var msdreader = {
       Module.cwrap('getVoiceChannelsCount', 'number', ['number']),
   get10Seconds: Module.cwrap('get10Seconds', 'number', ['number', 'number']),
   getFirstAtom: Module.cwrap('getFirstAtom', 'number', ['number']),
-  getLastAtom: Module.cwrap('getLastAtom', 'number', ['number'])
-
+  getLastAtom: Module.cwrap('getLastAtom', 'number', ['number']),
+  getVoiceAtomWrapperDuration: Module.cwrap('getVoiceAtomWrapperDuration','number',['number'])
 
 }
 

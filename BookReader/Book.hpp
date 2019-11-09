@@ -131,6 +131,29 @@ public:
       return -1;
     return 0;
   }
+  BookAtom *findAtom(BookPosIndicator from_, BookPosIndicator to_,
+                     bool (*filterFunc)(BookAtom *a)) {
+    if (from_.size() != 2)
+      throw "from_ has bad size.";
+    if (to_.size() != 2)
+      throw "to_ has bas size.";
+    auto currentPointer = from_;
+    while (true) {
+      auto compare_current_pointer = compare(currentPointer, to_);
+      if (compare_current_pointer == 1)
+        break;
+      auto current_group_i = currentPointer[0];
+      auto current_atom_i = currentPointer[1];
+      auto current_group = groups[current_group_i];
+      auto current_atom = current_group->decompose()[current_atom_i];
+      if (filterFunc(current_atom))
+        return current_atom;
+      if (compare_current_pointer == 0)
+        break; // we reach to the end
+      currentPointer = nextAtom(currentPointer);
+    }
+    return NULL;
+  }
   template <typename T>
   List<T> mapOnAtoms(BookPosIndicator from_, BookPosIndicator to_,
                      T (*mapFunc)(BookAtom *a)) {
@@ -150,7 +173,8 @@ public:
       auto current_group = groups[current_group_i];
       auto current_atom = current_group->decompose()[current_atom_i];
       rtn.push_back(mapFunc(current_atom));
-      if(compare_current_pointer==0) break; // we reach to the end
+      if (compare_current_pointer == 0)
+        break; // we reach to the end
       currentPointer = nextAtom(currentPointer);
     }
     return rtn;

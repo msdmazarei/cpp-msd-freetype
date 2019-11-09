@@ -93,6 +93,22 @@ extern int getIndicatorPart(BookPosIndicator *ind, int part) {
     return (*ind)[part];
   return -1;
 }
+extern BYTE *renderDocPage(BookRenderer *renderer, BookPosIndicator *ind,
+                           WORD zoom, WORD rotate) {
+  auto pageRtn = renderer->renderDocPage(*ind, zoom, rotate);
+  auto s = std::get<0>(pageRtn);
+  auto b = std::get<1>(pageRtn);
+  DWORD rtnbuffersizer = s + 4;
+  BYTE *rtn = new BYTE[rtnbuffersizer];
+  for (int i = 0; i < 4; i++)
+    rtn[i] = GetByteN(rtnbuffersizer, i);
+
+  delete b;
+
+  memcpy(rtn + 4, b, s);
+  return rtn;
+}
+
 extern MsdBookRendererPage *renderNextPage(BookRenderer *renderer,
                                            BookPosIndicator *ind) {
 

@@ -2,6 +2,7 @@
 // --cflags` -lpng -lfreetype -lharfbuzz  main.cpp BookReader/*cpp defs/*cpp
 // renderer/*cpp -o main -g
 #include "BookReader/Book.hpp"
+#include "BookReader/BookAtomBinary.hpp"
 #include "BookReader/BookAtomGroup.hpp"
 #include "BookReader/BookAtomText.hpp"
 #include "BookReader/BookDirectionGroup.hpp"
@@ -33,6 +34,20 @@ int main(int argc, char **argv) {
   }
   cout << endl;
   Book *b1 = Book::deserialize((int)filel, buf);
+  if (b1->getBookType() == BookType_EPUB) {
+    BookRendererFormat brf(30);
+
+    auto r = BookRenderer(b1, &brf, 500, 500);
+    auto k = r.getPageIndicators();
+    auto i = r.renderDocPage(BookPosIndicator({(WORD)-1, 10}), 100, 0);
+    auto png_size = std::get<0>(i);
+    auto png_data = std::get<1>(i);
+    std::fstream myfile;
+    myfile = std::fstream("file.png", std::ios::out | std::ios::binary);
+    myfile.write(png_data, png_size);
+    myfile.close();
+  }
+  return 0;
   // read font file
   ifstream ifs("/home/msd/.fonts/Zar.ttf", ios::binary | ios::ate);
   ifstream::pos_type pos = ifs.tellg();
@@ -62,9 +77,10 @@ int main(int argc, char **argv) {
   auto soundWrapper = bp.getVoiceAtomWrapper(start_atom);
   std::cout << "channels:" << soundWrapper->getChannels() << std::endl;
   std::cout << "Rate:" << soundWrapper->getRate() << std::endl;
-  std::cout << "TotalSecondLength" << soundWrapper->getTotalSecods()<< std::endl;
+  std::cout << "TotalSecondLength" << soundWrapper->getTotalSecods()
+            << std::endl;
   auto bys = soundWrapper->get10Second(0);
-return 0;
+  return 0;
   auto foreTextC = PixelColor(255, 255, 255, 255);
   auto backC = PixelColor(0, 0, 0, 255);
   auto selectedTextBackColor = PixelColor(0, 0, 255, 255);

@@ -2,12 +2,15 @@
 #define _MSD_BOOK_RENDERER
 
 #include "BookReader/Book.hpp"
+#include "BookReader/BookAtomBinary.hpp"
 #include "book_renderer_formats.hpp"
 #include "defs/typedefs.hpp"
 #include "renderer/msd_renderer.hpp"
 #include "utils/imageUtils.hpp"
 #include <map>
+#include <mupdf/fitz.h>
 #include <tuple>
+
 enum BookRendererFunc {
   BookRendererFunc_nextPageImage = 1,
   BookRendererFunc_renderMsdFormatPageAtPoint = 2,
@@ -42,23 +45,158 @@ protected:
   WORD pageHeight;
   Map<BookAtom *, TextImage> atomImages;
   TextRenderer *txtRenderer;
+  BookAtom *specAtom; // for pdf,epub books
   BYTE *current_font_buf;
   WORD font_buf_len;
+  WORD page_count;
+
+  // pdf
+  fz_context *ctx;
+  fz_document *doc;
+  fz_pixmap *pix;
+  fz_matrix ctm;
 
 public:
   BookRenderer(Book *book, BookRendererFormat *rendererFormat, WORD width,
                WORD height)
       : book(book), rendererFormat(rendererFormat), pageWidth(width),
-        pageHeight(height), txtRenderer(NULL) {}
+        pageHeight(height), txtRenderer(NULL) {
+
+    if (book->getBookType() == BookType_PDF ||
+        book->getBookType() == BookType_EPUB) {
+      // find spec atom
+      specAtom = book->findAtom(book->getFirstAtom(), book->getLastAtom(),
+                                BookRenderer::is_pdf_xps_epub_atom);
+      if (specAtom == NULL)
+        throw "no pdf found in book";
+
+      BookAtomBinary *bab = (BookAtomBinary *)specAtom;
+
+      ctx = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
+      if (!ctx) {
+        throw "cannot create mupdf context";
+      }
+      String throwmsg = "";
+      /* Register the default file types to handle. */
+      fz_try(ctx) fz_register_document_handlers(ctx);
+      fz_catch(ctx) {
+        fz_drop_context(ctx);
+        throwmsg = "cannot register document handlers";
+      }
+      if (throwmsg != "")
+        throw throwmsg;
+
+      throwmsg = "";
+      /* Open the document. */
+      fz_try(ctx) {
+        BYTE *buffer = bab->getBuffer();
+        fz_stream *s = fz_open_memory(ctx, buffer, bab->getBufferLength());
+        // doc = fz_open_document(ctx, input);
+        String input;
+        switch (bab->getAtomType()) {
+        case BookAtomType_PDF:
+          input = "f.pdf";
+          break;
+        case BookAtomType_EPUB:
+          input = "f.epub";
+          break;
+        case BookAtomType_XPS:
+          input = "f.xps";
+          break;
+        default:
+          input = "UNKNWN";
+          break;
+        }
+
+        doc = fz_open_document_with_stream(ctx, input.c_str(), s);
+      }
+      fz_catch(ctx) {
+        // fprintf(stderr, "cannot open document: %s\n",
+        // fz_caught_message(ctx));
+        fz_drop_context(ctx);
+        // return EXIT_FAILURE;
+        throwmsg = "cannot open document";
+      }
+      if (throwmsg != "")
+        throw throwmsg;
+
+      throwmsg = "";
+      /* Count the number of pages. */
+      fz_try(ctx) page_count = fz_count_pages(ctx, doc);
+      fz_catch(ctx) {
+
+        fz_drop_document(ctx, doc);
+        fz_drop_context(ctx);
+        throwmsg = "cannot count number of pages";
+      }
+      if (throwmsg != "")
+        throw throwmsg;
+    }
+  }
+  ~BookRenderer() {
+    if (doc) {
+      fz_drop_document(ctx, doc);
+    }
+    if (ctx) {
+      fz_drop_context(ctx);
+    }
+  }
+  static bool is_pdf_xps_epub_atom(BookAtom *a) {
+    switch (a->getAtomType()) {
+    case BookAtomType_EPUB:
+    case BookAtomType_XPS:
+    case BookAtomType_PDF:
+      return true;
+      break;
+
+    default:
+      return false;
+      break;
+    }
+  }
 
   BookRendererFormat *getBookRendererFormat() { return rendererFormat; }
   void setBookRendererFormat(BookRendererFormat *newBookRendererFormat) {
     rendererFormat = newBookRendererFormat;
   }
-  Book * getBook(){return book;}
+  Book *getBook() { return book; }
   BookPosIndicator getBookPointer() { return bookPointer; }
 
   Vector<BookPosIndicator> getPageIndicators();
+  Tuple<size_t, const char *> renderDocPage(BookPosIndicator pointer, WORD zoom,
+                                            WORD rotate) {
+    if (!(pointer.size() == 2 && pointer[0] == -1 && pointer[1] < page_count)) {
+      throw "BAD POINTER";
+    }
+    auto page_number = pointer[1];
+    /* Compute a transformation matrix for the zoom and rotation desired. */
+    /* The default resolution without scaling is 72 dpi. */
+    ctm = fz_scale(zoom / 100, zoom / 100);
+    ctm = fz_pre_rotate(ctm, rotate);
+    fz_layout_document(ctx, doc, pageWidth, pageHeight,
+                       rendererFormat->getFontSize());
+    String throwmsg = "";
+    /* Render page to an RGB pixmap. */
+    fz_try(ctx) pix = fz_new_pixmap_from_page_number(ctx, doc, page_number, ctm,
+                                                     fz_device_rgb(ctx), 0);
+    fz_catch(ctx) {
+      // fprintf(stderr, "cannot render page: %s\n", fz_caught_message(ctx));
+      throwmsg = "cannot render page";
+      fz_drop_document(ctx, doc);
+      fz_drop_context(ctx);
+    }
+    if (throwmsg != "")
+      throw throwmsg;
+    throwmsg = "";
+    fz_color_params cps;
+    fz_buffer *buf = fz_new_buffer(ctx, 1000000);
+    // fz_new_buffer_from_pixmap_as_png(ctx, pix, fz_default_color_params);
+    fz_output *fzo = fz_new_output_with_buffer(ctx, buf);
+    fz_write_pixmap_as_png(ctx, fzo, pix);
+    const char *b = fz_string_from_buffer(ctx, buf);
+    size_t a = fz_buffer_storage(ctx, buf, NULL);
+    return Tuple<size_t, const char *>(a, b);
+  }
   MsdBookRendererPage
   //, BookPosIndicator>
   renderMsdFormatPageAtPointFW(Vector<WORD> pointer);
@@ -164,7 +302,7 @@ public:
                              RenderDirection rDirection)
       : book(book), startLinePosInd(pointer), pageWidth(pageWidth),
         bookRenderer(bookRenderer), rDirection(rDirection), lineImagePtr(NULL),
-        maxImageHeight(0) , maxBaseLine(0){
+        maxImageHeight(0), maxBaseLine(0) {
     MLOG("MsdBookRendererLine Constructor Called.");
   }
   //   MsdBookRendererLine(Book *book) : book(book), rendererFunc(NULL){};
@@ -233,12 +371,11 @@ public:
     }
     endLinePosInd = tmpPos;
 
-    // atomImages = Vector<TextImage *>(l_atomImages.begin(), l_atomImages.end());
+    // atomImages = Vector<TextImage *>(l_atomImages.begin(),
+    // l_atomImages.end());
     return Vector<BookPosIndicator>();
   }
-  WORD getMaxHeight() {
-    return maxImageHeight;
-  }
+  WORD getMaxHeight() { return maxImageHeight; }
   WORD getMaxBaseLine() {
     return maxBaseLine;
     WORD max_baseline = 0;
@@ -248,7 +385,8 @@ public:
   }
   Vector<WORD> getEndLinePointer() { return endLinePosInd; }
   // Vector<BookAtom *> getBookAtoms() { return lineAtoms; }
-  // Vector<BookAtomGroup<BookAtom> *> getBookAtomGroups() { return lineGroups; }
+  // Vector<BookAtomGroup<BookAtom> *> getBookAtomGroups() { return lineGroups;
+  // }
 };
 
 class MsdBookRendererLine {
@@ -519,10 +657,12 @@ protected:
   BookPosIndicator startPagePosInd;
   BookPosIndicator endPagePosInd;
   RGBAImage pageImage;
+  // BYTE * pngContent;
   List<MsdBookRendererLine *> lines;
   WORD lineSpace;
 
 public:
+  MsdBookRendererPage(Book *book) : book(book) {}
   MsdBookRendererPage(Book *book, WORD pageWidth, WORD pageHeight,
                       BookPosIndicator startPagePosInd,
                       RenderDirection renderDirection,
@@ -531,7 +671,9 @@ public:
         bookRenderer(bookRenderer), renderDirection(renderDirection),
         startPagePosInd(startPagePosInd), lineSpace(lineSpace) {
     // std::cout << "Page renderer Called" << std::endl;
-
+    if (book->getBookType() == BookType_PDF) {
+      return;
+    }
     MLOG("");
     if (startPagePosInd.size() == 0)
       startPagePosInd = book->nextAtom(startPagePosInd);
@@ -707,8 +849,10 @@ public:
 MsdBookRendererPage
 //, BookPosIndicator>
 BookRenderer::renderMsdFormatPageAtPointFW(Vector<WORD> pointer) {
+
   MsdBookRendererPage rtn(book, pageWidth, pageHeight, pointer,
-                          RenderDirection_Forward, this, (WORD)15);
+                          RenderDirection_Forward, this,
+                          rendererFormat->getLineSpace());
   auto pageEndPointer = rtn.getTrueStartPoint();
   // return std::make_tuple(rtn, pageEndPointer);
   return rtn;
@@ -724,7 +868,15 @@ BookRenderer::renderMsdFormatPageAtPointBack(Vector<WORD> pointer) {
 };
 
 Vector<BookPosIndicator> BookRenderer::getPageIndicators() {
-
+  if (book->getBookType() == BookType_PDF ||
+      book->getBookType() == BookType_EPUB) {
+    Vector<BookPosIndicator> rtn(page_count);
+    for (int i = 0; i < page_count; i++) {
+      auto bpi = BookPosIndicator({(WORD)-1, (WORD)i});
+      rtn.push_back(bpi);
+    }
+    return rtn;
+  }
   auto firstAtom = book->nextAtom(BookPosIndicator());
   List<BookPosIndicator> l;
   BookPosIndicator lastInd = firstAtom;

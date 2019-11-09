@@ -7,8 +7,13 @@ enum ClassName {
   ClassName_BookDirectionGroup = 3,
   ClassName_BookItem = 4,
   ClassName_Book = 5,
-  ClassName_BookAtomVoice=6,
-  ClassName_BookVoiceAtomGroup=7
+  ClassName_BookAtomVoice = 6,
+  ClassName_BookVoiceAtomGroup = 7,
+  ClassName_BookAtomBinary = 8,
+  ClassName_BookAtomPDF = 9,
+  ClassName_BookAtomEPUB = 10,
+  ClassName_BookAtomXPS = 11,
+
 };
 class ClearTypeClass {
 public:

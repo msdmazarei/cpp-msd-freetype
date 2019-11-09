@@ -1,5 +1,6 @@
 #include "Book.hpp"
 #include "BookAtomVoice.hpp"
+#include "BookAtomBinary.hpp"
 #include "BookVoiceAtomGroup.hpp"
 #include <iostream>
 #include <string.h>
@@ -245,6 +246,18 @@ BookAtom *Book::deserialize_atom(BYTE *buf, DWORD ind) {
     memcpy(spBuffer, buf + ind, remainSize);
     rtn = new BookAtomVoice(duration, remainSize,
                             (VoiceAtomBinFormat)audioFormat, spBuffer);
+  }; break;
+  case BookAtomType_PDF: {
+    auto remainSize = atomSize-4-1;
+    BYTE *pdfBuffer = new BYTE[remainSize];
+    memcpy(pdfBuffer,buf+ind,remainSize);
+    rtn = new BookAtomPDF(remainSize,pdfBuffer);
+  }; break;
+    case BookAtomType_EPUB: {
+    auto remainSize = atomSize-4-1;
+    BYTE *epubBuffer = new BYTE[remainSize];
+    memcpy(epubBuffer,buf+ind,remainSize);
+    rtn = new BookAtomEPUB(remainSize,epubBuffer);
   }; break;
   default:
     break;

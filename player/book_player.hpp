@@ -1,7 +1,7 @@
 #ifndef MSDBOOK_PLAYER_HPP
 #define MSDBOOK_PLAYER_HPP
-#include "Book.hpp"
-#include "BookAtomVoice.hpp"
+#include "BookReader/Book.hpp"
+#include "BookReader/BookAtomVoice.hpp"
 #include "mpgwrapper.hpp"
 
 class BookPlayer {

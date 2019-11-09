@@ -15,6 +15,7 @@ protected:
   WORD fontBufferLen;
 
 public:
+  BookRendererFormat(WORD fontSize) : fontSize(fontSize) {}
   BookRendererFormat(PixelColor textForeColor, PixelColor textBackColor,
                      PixelColor selectedTextForeColor,
                      PixelColor selectedTextBackColor, WORD fontSize,
@@ -31,7 +32,7 @@ public:
   BYTE *getFontBuffer() { return fontBuffer; }
   WORD getFontBufferSize() { return fontBufferLen; }
   WORD getFontSize() { return fontSize; }
-  WORD getLineSpace() { return 15;}
+  WORD getLineSpace() { return 15; }
 };
 
 #endif
