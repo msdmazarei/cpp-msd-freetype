@@ -5,16 +5,9 @@
 #include <sstream>
 // export
 // PKG_CONFIG_PATH=/home/msd/projects/mpg123-1.25.12/wasmbuild/lib/pkgconfig
-// em++ -std=c++1z -I BookReader/ -I libs -I. -I ./defs -I ./renderer/ -I
-// ./player/ `pkg-config harfbuzz freetype2 libmpg123 --cflags`
-// -L/home/msd/projects/mpg123-1.25.12/wasmbuild/lib -llibmpg123 -s
-// DISABLE_EXCEPTION_CATCHING=0 -s USE_LIBPNG=1 -s WASM=1  -s USE_FREETYPE=1  -s
-// USE_HARFBUZZ=1 mainjs.cpp BookReader/*cpp defs/*cpp renderer/*cpp -o
-// _build/reader.html  -s
-// EXPORTED_FUNCTIONS='["_aTestFunc","_getBookFromBuf","_getBookAtomsCount","_getBookGroupsCount","_getRendererFormat","_getBookRenderer","_getRendererFormatTextColor","_getIndicatorPart","_renderNextPage","_getImageofPageResult","_initBookIndicator","_BookNextPart","_getFontBuffer","_getFontBufferLen","_deleteRenderedPage","_getBookType","_is_first_atom","_is_last_atom","_getBookIndicatorPartOfPageResult","_deleteBytePoniter","_deleteBookPosIndicator","_getBookProgress",
-// "_getBookTotalAtoms","_renderBackPage","_gotoBookPosIndicator","_getBookPosIndicators","_getBookContentAt","_getBookContentLength","_renderNextPages","_getBookPlayer","_getVoiceDuration","_deleteBookPlayer","_getVoiceAtomWrapper","_deleteVoiceAtomWrapper","_getVoiceSampleRate","_getVoiceChannelsCount","_get10Seconds","_getFirstAtom","_getLastAtom","_getVoiceAtomWrapperDuration"]'
-// -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -s
-// ALLOW_MEMORY_GROWTH=1
+
+//em++ -std=c++1z  -I BookReader/ -I libs -I. -I ./defs -I ./renderer/ -I ./player/ `pkg-config harfbuzz freetype2 libmpg123 --cflags` -I /home/msd/projects/mupdf/include -L/home/msd/projects/mpg123-1.25.12/wasmbuild/lib  -llibmpg123 -lm  -s DISABLE_EXCEPTION_CATCHING=0 -s USE_LIBPNG=1 -s WASM=1  -s USE_FREETYPE=1   mainjs.cpp BookReader/*cpp defs/*cpp renderer/*cpp /home/msd/projects/mupdf/build/wasm/release/libmupdf.a /home/msd/projects/mupdf/build/wasm/release/libmupdf-third.a /home/msd/projects/mupdf/build/wasm/release/source/fitz/harfbuzz.o -o _build/reader.html  -s EXPORTED_FUNCTIONS='["_aTestFunc","_getBookFromBuf","_getBookAtomsCount","_getBookGroupsCount","_getRendererFormat","_getBookRenderer","_getRendererFormatTextColor","_getIndicatorPart","_renderNextPage","_getImageofPageResult","_initBookIndicator","_BookNextPart","_getFontBuffer","_getFontBufferLen","_deleteRenderedPage","_getBookType","_is_first_atom","_is_last_atom","_getBookIndicatorPartOfPageResult","_deleteBytePoniter","_deleteBookPosIndicator","_getBookProgress", "_getBookTotalAtoms","_renderBackPage","_gotoBookPosIndicator","_getBookPosIndicators","_getBookContentAt","_getBookContentLength","_renderNextPages","_getBookPlayer","_getVoiceDuration","_deleteBookPlayer","_getVoiceAtomWrapper","_deleteVoiceAtomWrapper","_getVoiceSampleRate","_getVoiceChannelsCount","_get10Seconds","_getFirstAtom","_getLastAtom","_getVoiceAtomWrapperDuration","_renderDocPage"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -s ALLOW_MEMORY_GROWTH=1
+
 extern "C" {
 extern Book *getBookFromBuf(BYTE *buf, DWORD len) {
   return Book::deserialize(len, buf);
@@ -271,36 +264,36 @@ extern int deleteBookPlayer(BookPlayer *bookPlayer) {
   delete bookPlayer;
   return 0;
 }
-extern MpgWrapper *getVoiceAtomWrapper(BookPlayer *bookPlayer,
+extern MpgWrapper2 *getVoiceAtomWrapper(BookPlayer *bookPlayer,
                                        BookPosIndicator *p) {
   return bookPlayer->getVoiceAtomWrapper(*p);
 }
-extern int deleteVoiceAtomWrapper(MpgWrapper *p) {
+extern int deleteVoiceAtomWrapper(MpgWrapper2 *p) {
   delete p;
   return 0;
 }
-extern long getVoiceSampleRate(MpgWrapper *w) { return w->getRate(); }
-extern int getVoiceChannelsCount(MpgWrapper *w) { return w->getChannels(); }
-extern VOICEDURATION getVoiceAtomWrapperDuration(MpgWrapper *w) {
+extern long getVoiceSampleRate(MpgWrapper2 *w) { return w->getRate(); }
+extern int getVoiceChannelsCount(MpgWrapper2 *w) { return w->getChannels(); }
+extern VOICEDURATION getVoiceAtomWrapperDuration(MpgWrapper2 *w) {
   return w->getTotalSecods() * 1000;
 }
-extern BYTE *get10Seconds(MpgWrapper *w, VOICEDURATION fromMilliSecond) {
-  std::cout << "get10Seconds Called. fromMilli:" << fromMilliSecond
-            << std::endl;
+extern BYTE *get10Seconds(MpgWrapper2 *w, VOICEDURATION fromMilliSecond) {
+  // std::cout << "get10Seconds Called. fromMilli:" << fromMilliSecond
+            // << std::endl;
   auto r = w->get10Second(fromMilliSecond);
   auto buf = std::get<0>(r);
   auto buflen = std::get<1>(r) + 4 /*for spec size of buf*/;
-  std::cout << "get10Seconds buflen:" << buflen << "and buf:" << (ULONG)buf
-            << std::endl;
+  // std::cout << "get10Seconds buflen:" << buflen << "and buf:" << (ULONG)buf
+            // << std::endl;
   BYTE *rtn = new BYTE[buflen];
   for (int i = 0; i < 4; i++)
     rtn[i] = GetByteN(buflen, i);
   memcpy(rtn + 4, buf, buflen - 4);
-  std::cout << "memory copy done" << std::endl;
+  // std::cout << "memory copy done" << std::endl;
   // dont free buf cause it is refer to pcm buffer;
   // free(buf);
-  std::cout << "get10Seconds Done. returns rtn: " << (ULONG)rtn
-            << "buflen:" << buflen << std::endl;
+  // std::cout << "get10Seconds Done. returns rtn: " << (ULONG)rtn
+            // << "buflen:" << buflen << std::endl;
   return rtn;
 }
 extern BookPosIndicator *getFirstAtom(Book *b) {

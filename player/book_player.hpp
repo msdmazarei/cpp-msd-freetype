@@ -2,7 +2,7 @@
 #define MSDBOOK_PLAYER_HPP
 #include "BookReader/Book.hpp"
 #include "BookReader/BookAtomVoice.hpp"
-#include "mpgwrapper.hpp"
+#include "mpgwrapper2.hpp"
 
 class BookPlayer {
 protected:
@@ -27,11 +27,11 @@ public:
       return 0;
     }
   }
-  MpgWrapper *getVoiceAtomWrapper(BookPosIndicator ind) {
+  MpgWrapper2 *getVoiceAtomWrapper(BookPosIndicator ind) {
     auto atom = book->getAtom(ind);
     if (atom->getAtomType() == BookAtomType_Voice) {
       BookAtomVoice *vatom = (BookAtomVoice *)atom;
-      return new MpgWrapper(vatom->getBuffer(), vatom->getBufferLength());
+      return new MpgWrapper2(vatom->getBuffer(), vatom->getBufferLength());
     } else {
       return NULL;
     }

@@ -59,7 +59,7 @@ public:
     } else {
       pcm_buf_len = total_done;
     }
-    std::cout << mpg123_framepos(mh) << std::endl;
+    // std::cout << mpg123_framepos(mh) << std::endl;
   }
 
   long getRate() { return rate; }
@@ -68,17 +68,17 @@ public:
   long getlength() { return mpg123_length(mh); }
   float getTotalSecods() { return (float)getlength() / (float)getRate(); }
   std::tuple<BYTE *, size_t> get10Second(long from_second_milli) {
-    long total_du = (long)(getTotalSecods() * 1000);
+    long total_du = (long)(getTotalSecods() * 1000); 
     long to_second_milli = from_second_milli + 10 * 1000;
     if (to_second_milli > total_du)
       to_second_milli = total_du;
     if (from_second_milli > total_du) {
-      std::cout << "from>total duration " << std::endl;
+      // std::cout << "from>total duration " << std::endl;
       return std::tuple<BYTE *, size_t>(NULL, 0);
     }
-    std::cout << "from_mili: " << from_second_milli
-              << "to_milli: " << to_second_milli << "total_du: " << total_du
-              << std::endl;
+    // std::cout << "from_mili: " << from_second_milli
+    //           << "to_milli: " << to_second_milli << "total_du: " << total_du
+    //           << std::endl;
     auto chans = getChannels();
     auto sampleRate = getRate();
     auto coeff = chans * sizeof(INT16);
@@ -92,10 +92,11 @@ public:
     if (byteOffset_end % coeff != 0)
       byteOffset_end -= byteOffset_end % coeff;
 
-    std::cout << "all thing successfully done: "
-              << "OFF_START: " << byteOffset_start
-              << "OFF_END: " << byteOffset_end << "TOTAL SIZE: " << pcm_buf_len
-              << std::endl;
+    // std::cout << "all thing successfully done: "
+    //           << "OFF_START: " << byteOffset_start
+    //           << "OFF_END: " << byteOffset_end 
+    //           << "TOTAL SIZE: " << pcm_buf_len
+    //           << std::endl;
     return std::tuple<BYTE *, size_t>((BYTE *)(pcm_buf + byteOffset_start),
                                       byteOffset_end - byteOffset_start);
   }
