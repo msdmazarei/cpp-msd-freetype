@@ -32,6 +32,26 @@ typedef struct TextRendererException_ {
 
 TextRenderer::TextRenderer(BYTE *buffer, unsigned long len)
     : font_buffer(buffer), font_buffer_len(len) {
+
+  ctx = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
+  MLOG2("CTX created", ctx);
+  MLOG2("====== creating buffer, len:", len);
+  auto buf = fz_new_buffer_from_data(ctx, buffer, len);
+  // MLOG2("======  buffer created, len:",((fz_buffer_s *) buf)->len);
+
+  MLOG("buf created");
+  MLOG("creating fnt");
+  auto fnt = fz_new_font_from_buffer(ctx, NULL, buf, 0, 0);
+  MLOG("fnt created.");
+  ft_face = ((FT_Face )fnt->ft_face);
+  fz_hb_lock(ctx);
+  MLOG("hb_font creating");
+  hb_font = hb_ft_font_create_referenced(ft_face);
+  MLOG2("hb_font created",hb_font);
+  fz_hb_unlock(ctx);
+  // fz_hb_unlock(ctx);
+  /*
+
   if ((ft_error = FT_Init_FreeType(&ft_library))) {
     MLOG("FT_INIT_FReetype Exception");
     throw TextRendererException_t{func_FT_Init_FreeType, ft_error};
@@ -41,38 +61,57 @@ TextRenderer::TextRenderer(BYTE *buffer, unsigned long len)
     throw TextRendererException_t{func_FT_New_Memory_Face, ft_error};
   }
   MLOG("hb_font creating");
-  hb_font = hb_ft_font_create(ft_face, NULL);
+  hb_font = hb_ft_font_create_referenced(ft_face);
   MLOG("hb_font created");
+  */
 }
 
 void TextRenderer::set_font_size(unsigned int font_size) {
+  fz_hb_lock(ctx);
   if ((ft_error =
            FT_Set_Char_Size(ft_face, font_size * 64, font_size * 64, 0, 0))) {
+             fz_hb_unlock(ctx);
     throw TextRendererException_t{func_FT_Set_Char_Size, ft_error};
   }
+  fz_hb_unlock(ctx);
 }
 std::vector<glyph_position> TextRenderer::get_glyphs(char *text,
                                                      unsigned int text_len) {
+
+                                                       
+                                                       
   std::vector<glyph_position> rtn;
   /* Create hb-buffer and populate. */
   hb_buffer_t *hb_buffer;
+  MLOG("creating hb_buffer");
   hb_buffer = hb_buffer_create();
+  MLOG2("hb_buffer created",(void *)hb_buffer);
   hb_buffer_add_utf8(hb_buffer, text, text_len, 0, -1);
+  MLOG("hb_buffer is filled");
   hb_buffer_guess_segment_properties(hb_buffer);
 
   /* Shape it! */
+  MLOG("shaping hb_buffer");
+  
   hb_shape(hb_font, hb_buffer, NULL, 0);
-
+  MLOG("hb_buffer shaped");
   /* Get glyph information and positions out of the buffer. */
   unsigned int len = hb_buffer_get_length(hb_buffer);
   hb_glyph_info_t *info = hb_buffer_get_glyph_infos(hb_buffer, NULL);
   hb_glyph_position_t *pos = hb_buffer_get_glyph_positions(hb_buffer, NULL);
-
+  MLOG("pos is calculated");
   double current_x = 0;
   double current_y = 0;
   for (unsigned int i = 0; i < len; i++) {
     hb_codepoint_t gid = info[i].codepoint;
-    if ((ft_error = FT_Load_Glyph(ft_face, gid, FT_LOAD_COMPUTE_METRICS | FT_LOAD_RENDER))) {
+    MLOG2(" glyph gid:", gid);
+  }
+  for (unsigned int i = 0; i < len; i++) {
+    hb_codepoint_t gid = info[i].codepoint;
+    MLOG2("loading glyph gid:", gid);
+
+    if ((ft_error = FT_Load_Glyph(ft_face, gid,
+                                  FT_LOAD_COMPUTE_METRICS | FT_LOAD_RENDER))) {
       hb_buffer_destroy(hb_buffer);
       throw TextRendererException_t{func_FT_Load_Glyph, ft_error};
     }
@@ -84,8 +123,8 @@ std::vector<glyph_position> TextRenderer::get_glyphs(char *text,
     gp.y = y_position;
     gp.gid = gid;
     gp.bitmap_width = ft_face->glyph->bitmap.width;
-    gp.bitmap_height = ft_face->glyph->bitmap.rows  ;
-    MLOG2("gid:",gid);
+    gp.bitmap_height = ft_face->glyph->bitmap.rows;
+    MLOG2("gid:", gid);
     MLOG2("ft_face->glyph->bitmap.rows:", ft_face->glyph->bitmap.rows);
     gp.metrics_height = ft_face->glyph->metrics.height;
     gp.metrics_width = ft_face->glyph->metrics.width;
@@ -102,7 +141,11 @@ std::vector<glyph_position> TextRenderer::get_glyphs(char *text,
 }
 
 TextBitmap TextRenderer::render(char *text, unsigned int text_len, bool ltr) {
-  MLOG("TextRenderer::render called. getting glyphs");
+  fz_hb_lock(ctx);
+  MLOG2("TextRenderer::render called. getting glyphs len:",text_len);
+  for(int i=0;i<text_len;i++){
+    MLOG2("char - ",( int)(unsigned char)text[i]);
+  }
   auto glyphs_props = get_glyphs(text, text_len);
   int min_y = 0, max_y = 0, image_height = 0, image_width = 0;
   int min_x = 0;
@@ -164,6 +207,7 @@ TextBitmap TextRenderer::render(char *text, unsigned int text_len, bool ltr) {
                                     current_x < 0 ? 0 : current_x, gy);
   }
   MLOG("Atom renderered successfully");
+  fz_hb_unlock(ctx);  
   return {img_rtn, (uint)max_y};
 }
 inline BYTE getColor(float colorDistance, BYTE fColor, BYTE bColor) {

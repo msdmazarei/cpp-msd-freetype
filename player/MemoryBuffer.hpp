@@ -21,6 +21,7 @@ public:
     len = len;
     pos = 0;
   }
+  ~MemoryBuffer() { MLOG("Memroy Buffer Deconstructor called."); }
   static ssize_t read_(void *fd, void *buf, size_t count) {
     // auto orig_count = count;
     MemoryBuffer *mbuf = (MemoryBuffer *)fd;

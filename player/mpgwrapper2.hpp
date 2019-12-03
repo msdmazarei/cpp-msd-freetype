@@ -1,9 +1,9 @@
 #ifndef MSD_MPGWRAPPER2
 #define MSD_MPGWRAPPER2
+#include "MemoryBuffer.hpp"
+#include <defs/typedefs.hpp>
 #include <mpg123.h>
 #include <string.h>
-#include <defs/typedefs.hpp>
-#include "MemoryBuffer.hpp"
 
 class MpgWrapper2 {
 
@@ -43,13 +43,12 @@ public:
                                  MemoryBuffer::cleanup);
     mpg123_open_handle(mh, mbuf);
 
-
     instance_count++;
     auto scanres = mpg123_scan(mh);
 
     mpg123_getformat(mh, &rate, &channels, &encoding);
     min_buffer_size_to_read = mpg123_outblock(mh);
-    auto lk =  mpg123_length(mh);
+    auto lk = mpg123_length(mh);
   }
 
   long getRate() { return rate; }
@@ -110,10 +109,12 @@ public:
 
   ~MpgWrapper2() {
     instance_count--;
+    bool is_mpg123_deleted = false;
     if (mh != NULL) {
       mpg123_delete(mh);
+      is_mpg123_deleted = true;
     }
-    if (mbuf)
+    if (mbuf && is_mpg123_deleted == false)
       delete mbuf;
 
     if (is_lib_inited == true && instance_count == 0) {

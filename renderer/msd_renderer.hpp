@@ -1,6 +1,7 @@
 #ifndef _MSD_RENDERER_H_
 #define _MSD_RENDERER_H_
 #include <hb-ft.h>
+#include <mupdf/fitz.h>
 #include <png++/png.hpp>
 #include <vector>
 
@@ -42,6 +43,7 @@ private:
   FT_Library ft_library;
   FT_Face ft_face;
   FT_Error ft_error;
+  fz_context *ctx;
 
   hb_font_t *hb_font;
   std::vector<glyph_position> get_glyphs(char *text, unsigned int len);
@@ -59,6 +61,11 @@ private:
 
 public:
   TextRenderer(BYTE *buffer, unsigned long len);
+  ~TextRenderer() {
+
+    if (ctx)
+      fz_drop_context(ctx);
+  }
   void set_font_size(unsigned int font_size);
   TextBitmap render(char *text, unsigned int text_len, bool ltr);
   static RGBAImage colorizeBitmap(png::image<png::gray_pixel> &src,

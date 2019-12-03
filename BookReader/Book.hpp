@@ -98,6 +98,7 @@ public:
     return p;
   }
   bool is_last_atom(BookPosIndicator ind) {
+
     if (ind.size() == 2)
       return (ind[0] >= lastAtom[0] && ind[1] >= lastAtom[1]);
     else

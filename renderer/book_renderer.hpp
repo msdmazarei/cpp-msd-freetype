@@ -161,7 +161,9 @@ public:
   }
   Book *getBook() { return book; }
   BookPosIndicator getBookPointer() { return bookPointer; }
-
+  WORD getPageCount(){
+    return page_count;
+  }
   Vector<BookPosIndicator> getPageIndicators();
   Tuple<size_t, const char *> renderDocPage(BookPosIndicator pointer, WORD zoom,
                                             WORD rotate) {

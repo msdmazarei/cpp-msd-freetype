@@ -21,7 +21,7 @@ using namespace std;
 int main(int argc, char **argv) {
 
   auto rbook_file =
-      ifstream("book1.msd", std::ios_base::binary | std::ios::ate);
+      ifstream("/home/msd/tmp/tsasmract/public/msd_book.msd", std::ios_base::binary | std::ios::ate);
   cout << rbook_file.is_open() << endl;
   auto filel = rbook_file.tellg();
   cout << filel << endl;
@@ -34,12 +34,12 @@ int main(int argc, char **argv) {
   }
   cout << endl;
   Book *b1 = Book::deserialize((int)filel, buf);
-  if (b1->getBookType() == BookType_EPUB) {
+  if (b1->getBookType() == BookType_EPUB || b1->getBookType()==BookType_PDF) {
     BookRendererFormat brf(30);
 
     auto r = BookRenderer(b1, &brf, 500, 500);
     auto k = r.getPageIndicators();
-    auto i = r.renderDocPage(BookPosIndicator({(WORD)-1, 10}), 100, 0);
+    auto i = r.renderDocPage(BookPosIndicator({(WORD)-1, 54}), 100, 0);
     auto png_size = std::get<0>(i);
     auto png_data = std::get<1>(i);
     std::fstream myfile;
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
     myfile.write(png_data, png_size);
     myfile.close();
   }
-  return 0;
+  // return 0;
   // read font file
   ifstream ifs("/home/msd/.fonts/Zar.ttf", ios::binary | ios::ate);
   ifstream::pos_type pos = ifs.tellg();
@@ -69,18 +69,18 @@ int main(int argc, char **argv) {
   // let the destructor do it.
   ifs.close();
 
-  BookPlayer bp(b1);
-  auto start_atom = b1->getFirstAtom();
-  auto last_atom = b1->getLastAtom();
-  auto durtion = bp.getDurationFromTo(start_atom, last_atom);
-  std::cout << "duration:" << durtion << std::endl;
-  auto soundWrapper = bp.getVoiceAtomWrapper(start_atom);
-  std::cout << "channels:" << soundWrapper->getChannels() << std::endl;
-  std::cout << "Rate:" << soundWrapper->getRate() << std::endl;
-  std::cout << "TotalSecondLength" << soundWrapper->getTotalSecods()
-            << std::endl;
-  auto bys = soundWrapper->get10Second(0);
-  return 0;
+  // BookPlayer bp(b1);
+  // auto start_atom = b1->getFirstAtom();
+  // auto last_atom = b1->getLastAtom();
+  // auto durtion = bp.getDurationFromTo(start_atom, last_atom);
+  // std::cout << "duration:" << durtion << std::endl;
+  // auto soundWrapper = bp.getVoiceAtomWrapper(start_atom);
+  // std::cout << "channels:" << soundWrapper->getChannels() << std::endl;
+  // std::cout << "Rate:" << soundWrapper->getRate() << std::endl;
+  // std::cout << "TotalSecondLength" << soundWrapper->getTotalSecods()
+  //           << std::endl;
+  // auto bys = soundWrapper->get10Second(0);
+  // return 0;
   auto foreTextC = PixelColor(255, 255, 255, 255);
   auto backC = PixelColor(0, 0, 0, 255);
   auto selectedTextBackColor = PixelColor(0, 0, 255, 255);
