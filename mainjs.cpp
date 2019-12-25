@@ -1,7 +1,7 @@
 #include "Book.hpp"
 #include "book_player.hpp"
 #include "renderer/book_renderer.hpp"
-// #include <emscripten.h>
+#include <emscripten.h>
 #include <sstream>
 // export
 // PKG_CONFIG_PATH=/home/msd/projects/mpg123-1.25.12/wasmbuild/lib/pkgconfig
@@ -319,4 +319,24 @@ extern WORD getPageCount(BookRenderer *p){
   return p->getPageCount();
 }
 extern int aTestFunc(int i) { return i + 3285; }
+EM_JS(void, do_fetch, (), {
+  Asyncify.handleSleep(function(wakeUp) {
+    out("waiting for a fetch");
+    fetch("a.html").then(response => {
+      out("got the fetch response");
+      // (normally you would do something with the fetch here)
+      wakeUp();
+    });
+  });
+});
+
+
+extern int asyncFuncTest(){
+  puts("asyncFuncTest Called.");
+  do_fetch();
+  puts("After do_fetch() call.");
+  return 0;
 }
+
+}
+

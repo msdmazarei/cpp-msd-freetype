@@ -1,6 +1,6 @@
 #include "Book.hpp"
-#include "BookAtomVoice.hpp"
 #include "BookAtomBinary.hpp"
+#include "BookAtomVoice.hpp"
 #include "BookVoiceAtomGroup.hpp"
 #include <iostream>
 #include <string.h>
@@ -90,76 +90,76 @@ List<BYTE> *Book::serialize_group(Vector<BookAtom *> &atoms,
   }
   return rtn;
 }
-List<BYTE> *Book::serialize_binary() {
-  auto uAtoms = uniqAtoms(groups);
-  List<BYTE> *atomTable = new List<BYTE>();
-  for (auto a : uAtoms) {
-    auto bytes = a->serialize_binary();
-    for (auto b : *bytes)
-      atomTable->push_back(b);
-  }
-  DWORD atomTableSize = atomTable->size() + 4 /*Size Bytes Len*/;
-  for (int i = 3; i > -1; i--) {
-    BYTE b = GetByteN(atomTableSize, i);
-    atomTable->push_front(b);
-  }
+// List<BYTE> *Book::serialize_binary() {
+//   auto uAtoms = uniqAtoms(groups);
+//   List<BYTE> *atomTable = new List<BYTE>();
+//   for (auto a : uAtoms) {
+//     auto bytes = a->serialize_binary();
+//     for (auto b : *bytes)
+//       atomTable->push_back(b);
+//   }
+//   DWORD atomTableSize = atomTable->size() + 4 /*Size Bytes Len*/;
+//   for (int i = 3; i > -1; i--) {
+//     BYTE b = GetByteN(atomTableSize, i);
+//     atomTable->push_front(b);
+//   }
 
-  List<BYTE> *BodyTable = new List<BYTE>();
-  for (auto g : decompose()) {
-    auto sb = serialize_group(uAtoms, g);
-    /* for (BYTE b : *sb) {
-       std::cout << std::hex << (int)b << " ";
-     }
-     std::cout << std::endl;
-     */
-    for (auto b : *sb)
-      BodyTable->push_back(b);
-  }
-  auto BodyTableLen = BodyTable->size() + 4;
-  for (int i = 3; i > -1; i--) {
-    auto b = GetByteN(BodyTableLen, i);
-    BodyTable->push_front(b);
-  }
-  // random number
-  srand(time(NULL));
-  // generate key
-  auto key_len = rand() % 1024;
-  Vector<BYTE> enc_key = Vector<BYTE>(key_len);
-  for (int i = 0; i < key_len; i++)
-    enc_key[i] = rand() % 256;
+//   List<BYTE> *BodyTable = new List<BYTE>();
+//   for (auto g : decompose()) {
+//     auto sb = serialize_group(uAtoms, g);
+//     /* for (BYTE b : *sb) {
+//        std::cout << std::hex << (int)b << " ";
+//      }
+//      std::cout << std::endl;
+//      */
+//     for (auto b : *sb)
+//       BodyTable->push_back(b);
+//   }
+//   auto BodyTableLen = BodyTable->size() + 4;
+//   for (int i = 3; i > -1; i--) {
+//     auto b = GetByteN(BodyTableLen, i);
+//     BodyTable->push_front(b);
+//   }
+//   // random number
+//   srand(time(NULL));
+//   // generate key
+//   auto key_len = rand() % 1024;
+//   Vector<BYTE> enc_key = Vector<BYTE>(key_len);
+//   for (int i = 0; i < key_len; i++)
+//     enc_key[i] = rand() % 256;
 
-  List<BYTE> *rtn = new List<BYTE>();
-  rtn->push_back(0);             // version
-  rtn->push_back(getBookType()); // BookType
+//   List<BYTE> *rtn = new List<BYTE>();
+//   rtn->push_back(0);             // version
+//   rtn->push_back(getBookType()); // BookType
 
-  for (int i = 0; i < 4; i++) {
-    BYTE b = GetByteN((key_len + 4) /*its size*/, i);
-    rtn->push_back(b);
-  }
-  for (int i = 0; i < key_len; i++)
-    rtn->push_back(enc_key[i]); // copy enc key
-  // copy atom table
-  int i = 0;
-  for (auto a : *atomTable) {
-    if (key_len > 0)
-      rtn->push_back(a ^ enc_key[i]);
-    else
-      rtn->push_back(a);
-    if (key_len > 0)
-      i = (i + 1) % (key_len);
-  }
-  // copy body table
-  i = 0;
-  for (auto a : *BodyTable) {
-    if (key_len > 0)
-      rtn->push_back(a ^ enc_key[i]);
-    else
-      rtn->push_back(a);
-    if (key_len > 0)
-      i = (i + 1) % (key_len);
-  }
-  return rtn;
-};
+//   for (int i = 0; i < 4; i++) {
+//     BYTE b = GetByteN((key_len + 4) /*its size*/, i);
+//     rtn->push_back(b);
+//   }
+//   for (int i = 0; i < key_len; i++)
+//     rtn->push_back(enc_key[i]); // copy enc key
+//   // copy atom table
+//   int i = 0;
+//   for (auto a : *atomTable) {
+//     if (key_len > 0)
+//       rtn->push_back(a ^ enc_key[i]);
+//     else
+//       rtn->push_back(a);
+//     if (key_len > 0)
+//       i = (i + 1) % (key_len);
+//   }
+//   // copy body table
+//   i = 0;
+//   for (auto a : *BodyTable) {
+//     if (key_len > 0)
+//       rtn->push_back(a ^ enc_key[i]);
+//     else
+//       rtn->push_back(a);
+//     if (key_len > 0)
+//       i = (i + 1) % (key_len);
+//   }
+//   return rtn;
+// };
 Book Book::deserialize_from_bin(DWORD len, BYTE *buf) { throw 2; };
 DWORD getItemSize(BYTE *buf, DWORD ind) {
   DWORD rtn = 0;
@@ -181,7 +181,8 @@ BookAtomGroup<BookAtom> *Book::deserialize_group(BYTE *buf, DWORD ind,
   for (int i = 0; i < atom_count; i++) {
     WORD atomIndex = *(buf + ind) + (*(buf + ind + 1) << 8);
     ind += 2;
-    groupAtoms[i] = atoms[atomIndex];
+    groupAtoms[i] = dynamic_cast<BookAtom*>( atoms[atomIndex]);
+  
   }
   switch (groupType) {
   case 0:
@@ -196,11 +197,16 @@ BookAtomGroup<BookAtom> *Book::deserialize_group(BYTE *buf, DWORD ind,
 
     break;
   case 7: {
-    auto voiceAtoms = Vector<BookAtomVoice *>(groupAtoms.size());
-    for (int i = 0; i < groupAtoms.size(); i++)
-      voiceAtoms[i] = (BookAtomVoice *)groupAtoms[i];
 
-    rtn = (BookAtomGroup<BookAtom> *)new BookVoiceAtomGroup(voiceAtoms);
+    // auto voiceAtoms = Vector<BookAtomVoiceBase *>(groupAtoms.size());
+    // for (int i = 0; i < groupAtoms.size(); i++) {
+    //   MLOG(groupAtoms[i]->getType());
+    //   auto *aatm = groupAtoms[i];
+    //   voiceAtoms[i] =dynamic_cast<BookAtomVoiceBase*>( aatm);
+    //   MLOG(voiceAtoms[i]->getDuration());
+    // }
+
+    rtn = new BookAtomGroup<BookAtom>(groupAtoms);
   } break;
   default:
     break;
@@ -241,23 +247,24 @@ BookAtom *Book::deserialize_atom(BYTE *buf, DWORD ind) {
     ind++;
     auto duration = getDWORD(buf + ind);
     ind += 4;
-    auto remainSize = atomSize - 4 - 1 - 4-1 ; //atomtype  format duration  atom len
+    auto remainSize =
+        atomSize - 4 - 1 - 4 - 1; // atomtype  format duration  atom len
     BYTE *spBuffer = new BYTE[remainSize];
     memcpy(spBuffer, buf + ind, remainSize);
     rtn = new BookAtomVoice(duration, remainSize,
                             (VoiceAtomBinFormat)audioFormat, spBuffer);
   }; break;
   case BookAtomType_PDF: {
-    auto remainSize = atomSize-4-1;
+    auto remainSize = atomSize - 4 - 1;
     BYTE *pdfBuffer = new BYTE[remainSize];
-    memcpy(pdfBuffer,buf+ind,remainSize);
-    rtn = new BookAtomPDF(remainSize,pdfBuffer);
+    memcpy(pdfBuffer, buf + ind, remainSize);
+    rtn = new BookAtomPDF(remainSize, pdfBuffer);
   }; break;
-    case BookAtomType_EPUB: {
-    auto remainSize = atomSize-4-1;
+  case BookAtomType_EPUB: {
+    auto remainSize = atomSize - 4 - 1;
     BYTE *epubBuffer = new BYTE[remainSize];
-    memcpy(epubBuffer,buf+ind,remainSize);
-    rtn = new BookAtomEPUB(remainSize,epubBuffer);
+    memcpy(epubBuffer, buf + ind, remainSize);
+    rtn = new BookAtomEPUB(remainSize, epubBuffer);
   }; break;
   default:
     break;

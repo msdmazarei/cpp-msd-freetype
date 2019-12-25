@@ -21,7 +21,7 @@ using namespace std;
 int main(int argc, char **argv) {
 
   auto rbook_file =
-      ifstream("/home/msd/tmp/tsasmract/public/epub_book.msd", std::ios_base::binary | std::ios::ate);
+      ifstream("/home/msd/tmp/tsasmract/public/audio_book.msd", std::ios_base::binary | std::ios::ate);
   cout << rbook_file.is_open() << endl;
   auto filel = rbook_file.tellg();
   cout << filel << endl;
@@ -46,6 +46,14 @@ int main(int argc, char **argv) {
     myfile = std::fstream("file.png", std::ios::out | std::ios::binary);
     myfile.write(png_data, png_size);
     myfile.close();
+  }
+
+  if(b1->getBookType()==BookType_Voice){
+    auto a0=b1->getAtom( b1->getFirstAtom());
+
+    BookAtomVoice *aa = (BookAtomVoice*)a0;
+    MpgWrapper2 *m = new MpgWrapper2(aa->getBuffer(),aa->getBufferLength());
+    delete m;
   }
   // return 0;
   // read font file

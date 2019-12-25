@@ -10,11 +10,10 @@
 
 #define GetByteN(x, N) ((x >> (N * 8)) & 0xff);
 #define MLOG(x)                                                                \
-  ; // std::cout << __FILE__ << ":" << __LINE__ << " " <<x << std::endl;
+  std::cout << __FILE__ << ":" << __LINE__ << " " << x << std::endl;
 #define MLOG2(x, y)                                                            \
-  ;                                                                            \
-  // std::cout << __FILE__ << ":" << __LINE__ <<" "<< x << " " << y <<
-  // std::endl;
+                                                                               \
+  std::cout << __FILE__ << ":" << __LINE__ << " " << x << " " << y << std::endl;
 typedef unsigned char BYTE;
 typedef unsigned int WORD;
 typedef unsigned long DWORD;

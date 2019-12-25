@@ -3,9 +3,12 @@
 
 #include "BookReader/Book.hpp"
 #include "BookReader/BookAtomBinary.hpp"
+#include "BookReader/LazyBookAtomBinary.hpp"
 #include "book_renderer_formats.hpp"
 #include "defs/typedefs.hpp"
 #include "renderer/msd_renderer.hpp"
+#include "streamers/atom2randomreader.hpp"
+#include "streamers/fzStreamer.hpp"
 #include "utils/imageUtils.hpp"
 #include <map>
 #include <mupdf/fitz.h>
@@ -70,8 +73,6 @@ public:
       if (specAtom == NULL)
         throw "no pdf found in book";
 
-      BookAtomBinary *bab = (BookAtomBinary *)specAtom;
-
       ctx = fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
       if (!ctx) {
         throw "cannot create mupdf context";
@@ -88,12 +89,24 @@ public:
 
       throwmsg = "";
       /* Open the document. */
+      fz_stream *s;
       fz_try(ctx) {
-        BYTE *buffer = bab->getBuffer();
-        fz_stream *s = fz_open_memory(ctx, buffer, bab->getBufferLength());
+        if (specAtom->getType() == ClassName_LazyBookAtomPDF) {
+          LazyBookAtomPDF *latom = dynamic_cast<LazyBookAtomPDF *>(specAtom);
+          MsdRandomReader *mrr = LazyBinAtomToRandomReader(latom);
+          MemoryBuffer *mbuf = new MemoryBuffer(mrr);
+          s = FZStreamer::new_stream(ctx, mbuf);
+        } else {
+          BookAtomBinary *bab = (BookAtomBinary *)specAtom;
+          BYTE *buffer = bab->getBuffer();
+
+          s = fz_open_memory(ctx, buffer, bab->getBufferLength());
+        }
+
         // doc = fz_open_document(ctx, input);
         String input;
-        switch (bab->getAtomType()) {
+        MLOG2("file type to open: ", specAtom->getAtomType());
+        switch (specAtom->getAtomType()) {
         case BookAtomType_PDF:
           input = "f.pdf";
           break;
@@ -107,7 +120,7 @@ public:
           input = "UNKNWN";
           break;
         }
-
+        MLOG2("fz_open_document_with_stream input:", input);
         doc = fz_open_document_with_stream(ctx, input.c_str(), s);
       }
       fz_catch(ctx) {
@@ -161,13 +174,11 @@ public:
   }
   Book *getBook() { return book; }
   BookPosIndicator getBookPointer() { return bookPointer; }
-  WORD getPageCount(){
-    return page_count;
-  }
+  WORD getPageCount() { return page_count; }
   Vector<BookPosIndicator> getPageIndicators();
   Tuple<size_t, const char *> renderDocPage(BookPosIndicator pointer, WORD zoom,
                                             WORD rotate) {
-    if (!(pointer.size() == 2 && pointer[0] == -1 && pointer[1] < page_count)) {
+    if (!(pointer.size() == 2 && pointer[0] == (WORD)-1 && pointer[1] < page_count)) {
       throw "BAD POINTER";
     }
     auto page_number = pointer[1];

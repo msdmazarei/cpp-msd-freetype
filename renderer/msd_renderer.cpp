@@ -1,6 +1,6 @@
 #include "msd_renderer.hpp"
 #include "defs/typedefs.hpp"
-
+#include <mupdf/fitz/font.h>
 // #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #include "stb_image_write.h"
 // #include <ftcolor.h>
@@ -43,7 +43,10 @@ TextRenderer::TextRenderer(BYTE *buffer, unsigned long len)
   MLOG("creating fnt");
   auto fnt = fz_new_font_from_buffer(ctx, NULL, buf, 0, 0);
   MLOG("fnt created.");
-  ft_face = ((FT_Face )fnt->ft_face);
+  // fz_font p;
+  
+  // ft_face = ((FT_Face )(fnt->ft_face));
+  ft_face = (FT_Face) fz_font_ft_face(ctx,fnt);
   fz_hb_lock(ctx);
   MLOG("hb_font creating");
   hb_font = hb_ft_font_create_referenced(ft_face);

@@ -44,7 +44,7 @@ typedef struct BookError_ {
   BookError error;
 } BookError_t;
 
-class Book : public Serializable<Book>,
+class   Book : public Serializable<Book>,
              Decomposable<BookAtomGroup<BookAtom> *>,
              ClearTypeClass {
 protected:
@@ -62,6 +62,7 @@ public:
   ClassName getType() override { return ClassName_Book; }
   bool is_render_decomposable() override { return true; };
   Vector<BookAtomGroup<BookAtom> *> decompose() override { return groups; };
+  Book(BookType book_type):booktype(book_type){}
   Book(BookType book_type, Vector<BookAtomGroup<BookAtom> *> grps,
        Vector<BookContent> contents)
       : booktype(book_type), groups(grps), Contents(contents) {
@@ -318,7 +319,7 @@ public:
   }
   Vector<BookContent> getBookContent() { return Contents; }
 
-  List<BYTE> *serialize_binary() override;
+  // List<BYTE> *serialize_binary() override;
   Book deserialize_from_bin(DWORD len, BYTE *buf) override;
   static Book *deserialize(DWORD index, BYTE *buf);
   static BookAtom *deserialize_atom(BYTE *buf, DWORD ind);

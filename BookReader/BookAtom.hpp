@@ -18,11 +18,19 @@ public:
     BookAtom *rtn = new BookAtom(atom_type);
     return rtn;
   }
-  List<BYTE> *serialize_binary() override;
+  // List<BYTE> *serialize_binary() override;
 
   friend bool operator<(const BookAtom &a, const BookAtom &b) {
     return a.atom_type < b.atom_type;
   }
 };
 
+class BookAtomVoiceBase : virtual public BookAtom {
+protected:
+  DWORD duration;
+
+public:
+  virtual DWORD getDuration() { throw 1; };
+  BookAtomVoiceBase(DWORD duration) : duration(duration), BookAtom(BookAtomType_Voice){};
+};
 #endif

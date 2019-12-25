@@ -8,11 +8,11 @@
 #include "BookAtomVoice.hpp"
 #include "clearTypeClass/cleartype.hpp"
 
-class BookVoiceAtomGroup : public BookAtomGroup<BookAtomVoice> {
+class BookVoiceAtomGroup : public BookAtomGroup<BookAtomVoiceBase> {
 
 public:
-  BookVoiceAtomGroup(Vector<BookAtomVoice *> voices)
-      : BookAtomGroup<BookAtomVoice>(voices) {}
+  BookVoiceAtomGroup(Vector<BookAtomVoiceBase *> voices)
+      : BookAtomGroup<BookAtomVoiceBase>(voices) {}
   ClassName getType() override;
   DWORD getDuration() {
     DWORD rtn = 0;

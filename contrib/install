@@ -1,0 +1,4 @@
+make mupdf:
+make HAVE_PTHREAD=no HAVE_CURL=no HAVE_GLUT=no HAVE_X11=no debug
+-or-
+make HAVE_PTHREAD=no HAVE_CURL=no HAVE_GLUT=no HAVE_X11=no install

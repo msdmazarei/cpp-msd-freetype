@@ -1,5 +1,6 @@
 #ifndef _MEMORYBUFFER_
 #define _MEMORYBUFFER_
+#include "BookReader/MsdRandomReader.hpp"
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -13,15 +14,26 @@ protected:
   unsigned long len;
   long pos;
   int f;
+  MsdRandomReader *randomReader;
 
 public:
+  MemoryBuffer(MsdRandomReader *randomReader)
+      : randomReader(randomReader) {
+    len = randomReader->getByteLength();
+    buf=NULL;
+    pos = 0;
+
+  }
   MemoryBuffer(unsigned char *buf, unsigned long len)
-      : buf(buf), len(len), pos(0) {
+      : buf(buf), len(len), pos(0), randomReader(NULL) {
     buf = buf;
     len = len;
     pos = 0;
   }
+  long getPos(){return pos;}
+
   ~MemoryBuffer() { MLOG("Memroy Buffer Deconstructor called."); }
+
   static ssize_t read_(void *fd, void *buf, size_t count) {
     // auto orig_count = count;
     MemoryBuffer *mbuf = (MemoryBuffer *)fd;
@@ -30,12 +42,22 @@ public:
 
       return 0;
     }
+
     size_t avail_count = mbuf->len - mbuf->pos;
     count = count < avail_count ? count : avail_count;
     if (count == 0)
       return count;
-    unsigned char *bufaddr = mbuf->buf + mbuf->pos;
-    memcpy(buf, bufaddr, count);
+    if (mbuf->buf != NULL) {
+      unsigned char *bufaddr = mbuf->buf + mbuf->pos;
+      memcpy(buf, bufaddr, count);
+    } else {
+      auto rtn = mbuf->randomReader->read(mbuf->pos,count);
+      unsigned char *bufaddr = std::get<1>(rtn);
+      count = std::get<0>(rtn);
+      memcpy(buf, bufaddr, count);
+      free(bufaddr);
+    }
+
     mbuf->pos += count;
     return count;
   }

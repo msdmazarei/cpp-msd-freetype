@@ -22,6 +22,33 @@ protected:
   MemoryBuffer *mbuf;
 
 public:
+  MpgWrapper2(MemoryBuffer *mbuf) : buf(NULL), buflen(0) {
+
+    if (is_lib_inited == false) {
+      if (mpg123_init() != MPG123_OK) {
+        throw "MPG123 init faled";
+      } else {
+        is_lib_inited = true;
+      }
+    }
+
+    int err;
+    mpg123_handle *mpg_handler = mpg123_new(NULL, &err);
+    if (err != MPG123_OK) {
+      throw "Error to get mpg123 instance";
+    }
+    mh = mpg_handler;
+    mpg123_replace_reader_handle(mh, MemoryBuffer::read_, MemoryBuffer::lseek_,
+                                 MemoryBuffer::cleanup);
+    mpg123_open_handle(mh, mbuf);
+
+    instance_count++;
+    auto scanres = mpg123_scan(mh);
+
+    mpg123_getformat(mh, &rate, &channels, &encoding);
+    min_buffer_size_to_read = mpg123_outblock(mh);
+    auto lk = mpg123_length(mh);
+  }
   MpgWrapper2(BYTE *buf, ULONG len) : buf(buf), buflen(len) {
 
     if (is_lib_inited == false) {

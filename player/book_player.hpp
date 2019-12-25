@@ -2,8 +2,9 @@
 #define MSDBOOK_PLAYER_HPP
 #include "BookReader/Book.hpp"
 #include "BookReader/BookAtomVoice.hpp"
+#include "BookReader/LazyBookAtomVoice.hpp"
 #include "mpgwrapper2.hpp"
-
+#include "streamers/atom2randomreader.hpp"
 class BookPlayer {
 protected:
   Book *book;
@@ -21,17 +22,31 @@ public:
   }
   static VOICEDURATION getAtomDuration(BookAtom *atom) {
     if (atom->getAtomType() == BookAtomType_Voice) {
-      BookAtomVoice *voice = (BookAtomVoice *)atom;
+      BookAtomVoiceBase *voice = dynamic_cast<BookAtomVoiceBase *>(atom);
       return voice->getDuration();
     } else {
       return 0;
     }
   }
   MpgWrapper2 *getVoiceAtomWrapper(BookPosIndicator ind) {
-    auto atom = book->getAtom(ind);
+    BookAtom* atom = book->getAtom(ind);
     if (atom->getAtomType() == BookAtomType_Voice) {
-      BookAtomVoice *vatom = (BookAtomVoice *)atom;
-      return new MpgWrapper2(vatom->getBuffer(), vatom->getBufferLength());
+      if (atom->getType() == ClassName_BookAtomVoice) {
+        BookAtomVoice *vatom = dynamic_cast<BookAtomVoice *>(atom);
+        return new MpgWrapper2(vatom->getBuffer(), vatom->getBufferLength());
+      }
+      if (atom->getType() == ClassName_LazyBookAtomVoice) {
+        auto lazyBookAtomVoice = dynamic_cast<LazyBookAtomVoice*>(atom);
+        auto s = lazyBookAtomVoice->getBufferLength();
+        MLOG(lazyBookAtomVoice->getBufferLength());
+        LazyBookAtomBinary *lbinatom = dynamic_cast<LazyBookAtomBinary*>(lazyBookAtomVoice);
+        MsdRandomReader *mrr = LazyBinAtomToRandomReader(lbinatom);
+            // new ProxyMsdRandomReader(lazyBookAtomVoice, &readctx, lazyBookAtomVoice->getBufferLength());
+        auto mem = new MemoryBuffer(mrr);
+
+        return new MpgWrapper2(mem);
+      }
+      return NULL;
     } else {
       return NULL;
     }
