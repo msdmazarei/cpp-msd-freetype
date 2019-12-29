@@ -1,6 +1,9 @@
+#include "utils/jsreader.hpp"
 #include "Book.hpp"
 #include "book_player.hpp"
 #include "renderer/book_renderer.hpp"
+// #include "BookReader/MsdRandomReader.hpp"
+#include "BookReader/MsdLazyBook.hpp"
 #include <emscripten.h>
 #include <sstream>
 // export
@@ -21,6 +24,10 @@
 // -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -s
 // ALLOW_MEMORY_GROWTH=1
 
+
+
+
+//em++  -v -std=c++1z  -I /home/msd/projects/mpg123-1.25.12/build/include -IBookReader -I libs -I. -I ./defs -I ./renderer/ -I ./player/ `pkg-config harfbuzz freetype2 libmpg123 --cflags` -I /home/msd/tmp/mupdf/include -L/home/msd/projects/mpg123-1.25.12/build/lib  -llibmpg123 -lm  -s DISABLE_EXCEPTION_CATCHING=0 -s USE_LIBPNG=1   -s USE_FREETYPE=1 mainjs.cpp BookReader/*cpp defs/*cpp renderer/*cpp /home/msd/tmp/mupdf/build/wasm/release/libmupdf.a /home/msd/tmp/mupdf/build/wasm/release/libmupdf-third.a  -o _build/reader.html  -s EXPORTED_FUNCTIONS='["_aTestFunc","_getBookFromBuf","_getBookAtomsCount","_getBookGroupsCount","_getRendererFormat","_getBookRenderer","_getRendererFormatTextColor","_getIndicatorPart","_renderNextPage","_getImageofPageResult","_initBookIndicator","_BookNextPart","_getFontBuffer","_getFontBufferLen","_deleteRenderedPage","_getBookType","_is_first_atom","_is_last_atom","_getBookIndicatorPartOfPageResult","_deleteBytePoniter","_deleteBookPosIndicator","_getBookProgress", "_getBookTotalAtoms","_renderBackPage","_gotoBookPosIndicator","_getBookPosIndicators","_getBookContentAt","_getBookContentLength","_renderNextPages","_getBookPlayer","_getVoiceDuration","_deleteBookPlayer","_getVoiceAtomWrapper","_deleteVoiceAtomWrapper","_getVoiceSampleRate","_getVoiceChannelsCount","_get10Seconds","_getFirstAtom","_getLastAtom","_getVoiceAtomWrapperDuration","_renderDocPage","_getMsdLazyBook","_deleteMsdLazyBook"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -s ALLOW_MEMORY_GROWTH=1 -s ASYNCIFY -s 'ASYNCIFY_IMPORTS=["js_do_fetch"]'
 extern "C" {
 extern Book *getBookFromBuf(BYTE *buf, DWORD len) {
   return Book::deserialize(len, buf);
@@ -330,11 +337,64 @@ EM_JS(void, do_fetch, (), {
   });
 });
 
+extern MsdLazyBook*  getMsdLazyBook(DWORD id,DWORD len){
+  JsMsdRandomReader* reader = new JsMsdRandomReader(id,len);
+  MsdLazyBook * rtn = new MsdLazyBook(reader);
+  return rtn;
+}
+extern int deleteMsdLazyBook(MsdLazyBook* book){
+  delete  book;
+  return 0;
+}
+
+
+EM_JS(DWORD , js_do_fetch_1, (), {
+  return Asyncify.handleSleep(function(wakeUp) {
+    debugger;
+    out("Wasm: waiting for a fetch");
+    out("id:",id);
+    let k = msd_js_function_read_bytes(0,10);
+    k.then(res =>{
+      debugger;
+      wakeUp(0);
+      out("WASM: k resolved.");
+      return;
+      
+
+        wakeUp(l);
+    //   wakeUp(res);
+    }, rej => {
+      out("WASM: k rejected");
+      wakeUp(0);
+    });
+    // await k;
+    // fetch("a.html").then(response => {
+    //   out("got the fetch response");
+    //   // (normally you would do something with the fetch here)
+    //   wakeUp();
+    // });
+  });
+});
 
 extern int asyncFuncTest(){
   puts("asyncFuncTest Called.");
-  do_fetch();
+  js_do_fetch_1();
   puts("After do_fetch() call.");
+  return 0;
+};
+
+extern int asyncFuncTest2(){
+  puts("asyncFuncTest2 Called.");
+  js_do_fetch(0,0,0,0);
+  puts("aftre js_do_fetch() call.");
+  puts("asyncFuncTest2 Done.");
+  return 0;
+};
+
+extern int nestedAsyncCall(){
+  puts("nestedAsyncCall Called.");
+  asyncFuncTest2();
+  puts("nestedAsyncCall Done");
   return 0;
 }
 

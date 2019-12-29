@@ -52,7 +52,8 @@ public:
     for (DWORD i = 0; i < atomIndices.size(); i++) {
       auto atomOffset =
           atomIndices[i] + atomTableOffset + 4 /*atom table len bytes*/;
-      switch (atomTypes[i]) {
+      BookAtomType bat = (BookAtomType)atomTypes[i];
+      switch (bat) {
       case BookAtomType_Control_NewLine:
       case BookAtomType_Control_NewPage:
       case BookAtomType_Text: {
@@ -81,34 +82,39 @@ public:
         auto aatom = new LazyBookAtomVoice(
             randomReader, atomOffset, atomLengths[i], encKey, audioDuration,
             (VoiceAtomBinFormat)audioFormat, 10, atomOffset - atomTableOffset);
-            
-            // MLOG(aatom->getDuration());
-            // MLOG(aatom->getAtomType());
-            // MLOG(aatom->getType());
-            BookAtom *baatom =dynamic_cast<BookAtom*>( aatom);
-            MLOG(dynamic_cast<LazyBookAtomVoice*>(baatom)->getBufferLength());
-            // MLOG(baatom->getDuration());
+
+        // MLOG(aatom->getDuration());
+        // MLOG(aatom->getAtomType());
+        // MLOG(aatom->getType());
+        BookAtom *baatom = dynamic_cast<BookAtom *>(aatom);
+        MLOG(dynamic_cast<LazyBookAtomVoice *>(baatom)->getBufferLength());
+        // MLOG(baatom->getDuration());
         atoms[i] = baatom;
 
       }
 
       break;
       case BookAtomType_PDF:
-        atoms[i] =dynamic_cast<BookAtom*>( new LazyBookAtomPDF(randomReader, atomOffset, atomLengths[i],
-                                       encKey, 5, atomOffset - atomTableOffset));
+        atoms[i] = dynamic_cast<BookAtom *>(
+            new LazyBookAtomPDF(randomReader, atomOffset, atomLengths[i],
+                                encKey, 5, atomOffset - atomTableOffset));
         break;
       case BookAtomType_EPUB:
-        atoms[i] = dynamic_cast<BookAtom*>(
+        atoms[i] = dynamic_cast<BookAtom *>(
             new LazyBookAtomEPUB(randomReader, atomOffset, atomLengths[i],
                                  encKey, 5, atomOffset - atomTableOffset));
 
         break;
       case BookAtomType_XPS:
 
-        atoms[i] =dynamic_cast<BookAtom*>( new LazyBookAtomXPS(randomReader, atomOffset, atomLengths[i],
-                                       encKey, 5, atomOffset - atomTableOffset));
+        atoms[i] = dynamic_cast<BookAtom *>(
+            new LazyBookAtomXPS(randomReader, atomOffset, atomLengths[i],
+                                encKey, 5, atomOffset - atomTableOffset));
 
         break;
+      
+      default:
+      throw "UnExpected Atom Type";
       }
     }
   }
@@ -140,6 +146,10 @@ public:
     }
     Vector<BookContent> v_content(contnet.begin(), contnet.end());
     return v_content;
+  }
+  ~MsdLazyBook() {
+    if (randomReader)
+      delete randomReader;
   }
   MsdLazyBook(MsdRandomReader *reader)
       : randomReader(reader), Book(BookType::BookType_EPUB) {
