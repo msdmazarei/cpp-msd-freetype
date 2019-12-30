@@ -86,8 +86,7 @@ public:
   JsMsdRandomReader(DWORD id, DWORD len) : totalLen(len), id(id) {}
   DWORD getByteLength() override { return totalLen; }
   Tuple<DWORD, BYTE *> read(DWORD from, DWORD len) override {
-    MLOG4("read function called, from:", from, " id: ", id);
-    MLOG4("read function called, len:", len, "id:", id);
+    MLOG4("read function called, (id,from,len)",id, from, len);
     if (totalLen >= (from + len)) {
       BYTE * buf = new BYTE[len];
       MLOG2("before call js_do_fetch id:", id);

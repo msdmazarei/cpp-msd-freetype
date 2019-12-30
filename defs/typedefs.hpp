@@ -9,21 +9,21 @@
 #include <vector>
 
 #define GetByteN(x, N) ((x >> (N * 8)) & 0xff);
-#define MLOG(x)                                                                \
-  std::cout << __FILE__ << ":" << __LINE__ << " " << x << std::endl;
-#define MLOG2(x, y)                                                            \
-                                                                               \
-  std::cout << __FILE__ << ":" << __LINE__ << " " << x << " " << y << std::endl;
+#define MLOG(x)                       ;//                                         \
+  // std::cout << __FILE__ << ":" << __LINE__ << " " << x << std::endl;
+#define MLOG2(x, y)                  ;//                                          \
+                                   //                                            \
+  // std::cout << __FILE__ << ":" << __LINE__ << " " << x << " " << y << std::endl;
 
-#define MLOG3(x, y, z)                                                         \
-                                                                               \
-  std::cout << __FILE__ << ":" << __LINE__ << " " << x << " " << y << " " << z \
-            << std::endl;
+#define MLOG3(x, y, z)            ;//                                             \
+                                //                                               \
+  // std::cout << __FILE__ << ":" << __LINE__ << " " << x << " " << y << " " << z \
+            // << std::endl;
 
-#define MLOG4(x, y, z, a)                                                      \
-                                                                               \
-  std::cout << __FILE__ << ":" << __LINE__ << " " << x << " " << y << " " << z \
-            << " " << a << std::endl;
+#define MLOG4(x, y, z, a)  ;//                                                    \
+                              //                                                 \
+  // std::cout << __FILE__ << ":" << __LINE__ << " " << x << " " << y << " " << z \
+            // << " " << a << std::endl;
 
 typedef unsigned char BYTE;
 typedef unsigned int WORD;

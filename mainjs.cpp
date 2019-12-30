@@ -29,6 +29,21 @@
 
 //em++  -v -std=c++1z  -I /home/msd/projects/mpg123-1.25.12/build/include -IBookReader -I libs -I. -I ./defs -I ./renderer/ -I ./player/ `pkg-config harfbuzz freetype2 libmpg123 --cflags` -I /home/msd/tmp/mupdf/include -L/home/msd/projects/mpg123-1.25.12/build/lib  -llibmpg123 -lm  -s DISABLE_EXCEPTION_CATCHING=0 -s USE_LIBPNG=1   -s USE_FREETYPE=1 mainjs.cpp BookReader/*cpp defs/*cpp renderer/*cpp /home/msd/tmp/mupdf/build/wasm/release/libmupdf.a /home/msd/tmp/mupdf/build/wasm/release/libmupdf-third.a  -o _build/reader.html  -s EXPORTED_FUNCTIONS='["_aTestFunc","_getBookFromBuf","_getBookAtomsCount","_getBookGroupsCount","_getRendererFormat","_getBookRenderer","_getRendererFormatTextColor","_getIndicatorPart","_renderNextPage","_getImageofPageResult","_initBookIndicator","_BookNextPart","_getFontBuffer","_getFontBufferLen","_deleteRenderedPage","_getBookType","_is_first_atom","_is_last_atom","_getBookIndicatorPartOfPageResult","_deleteBytePoniter","_deleteBookPosIndicator","_getBookProgress", "_getBookTotalAtoms","_renderBackPage","_gotoBookPosIndicator","_getBookPosIndicators","_getBookContentAt","_getBookContentLength","_renderNextPages","_getBookPlayer","_getVoiceDuration","_deleteBookPlayer","_getVoiceAtomWrapper","_deleteVoiceAtomWrapper","_getVoiceSampleRate","_getVoiceChannelsCount","_get10Seconds","_getFirstAtom","_getLastAtom","_getVoiceAtomWrapperDuration","_renderDocPage","_getMsdLazyBook","_deleteMsdLazyBook"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap"]' -s ALLOW_MEMORY_GROWTH=1 -s ASYNCIFY -s 'ASYNCIFY_IMPORTS=["js_do_fetch"]'
 extern "C" {
+
+  bool is_lazy_loading = false;
+void * last_lazy_object = NULL;
+extern bool get_is_lazy_loading(){
+  return is_lazy_loading;
+}
+extern void* get_lazy_object(){
+  return last_lazy_object;
+}
+extern int reset_lazy_loading(){
+  is_lazy_loading= false;
+  last_lazy_object = NULL;
+  return 0;
+}
+
 extern Book *getBookFromBuf(BYTE *buf, DWORD len) {
   return Book::deserialize(len, buf);
 }
@@ -91,7 +106,22 @@ extern DWORD getRendererFormatTextColor(BookRendererFormat *format) {
 }
 extern BookRenderer *getBookRenderer(Book *book, BookRendererFormat *format,
                                      WORD width, WORD height) {
-  return new BookRenderer(book, format, width, height);
+                                   
+                if(book->getType()==ClassName_Book){
+                  MLOG("book is not lazybook");
+  auto rtn = new BookRenderer(book, format, width, height);
+  MLOG2("getBookRenderer(): created object is:", rtn);
+  return rtn;
+                }
+  if (is_lazy_loading) return NULL;
+  is_lazy_loading = true;
+  last_lazy_object = NULL;
+  MLOG("getBookRenderer(): creating lazy instance");
+  auto rtn =  new BookRenderer(book, format, width, height);
+  MLOG2("getBookRenderer(): rendere created for lazy object: ",rtn);
+  last_lazy_object = rtn;
+  return rtn;
+   
 }
 
 extern BookPosIndicator *initBookIndicator() { return new BookPosIndicator(); }
@@ -108,7 +138,16 @@ extern int getIndicatorPart(BookPosIndicator *ind, int part) {
 }
 extern BYTE *renderDocPage(BookRenderer *renderer, BookPosIndicator *ind,
                            WORD zoom, WORD rotate) {
-  auto pageRtn = renderer->renderDocPage(*ind, zoom, rotate);
+                             ClassName t = (renderer->getBook())->getType();
+                             bool is_lazy_action = (t==ClassName_MsdLazyBook);
+              if(is_lazy_action==true){
+                MLOG("book is  lazy entity");
+                  if (is_lazy_loading) return NULL;
+  is_lazy_loading = true;
+  last_lazy_object = NULL;
+              } 
+
+              auto pageRtn = renderer->renderDocPage(*ind, zoom, rotate);
   auto s = std::get<0>(pageRtn);
   auto b = std::get<1>(pageRtn);
   DWORD rtnbuffersizer = s + 4;
@@ -118,8 +157,13 @@ extern BYTE *renderDocPage(BookRenderer *renderer, BookPosIndicator *ind,
 
   memcpy(rtn + 4, b, s);
   delete b;
+if(is_lazy_action){
+last_lazy_object = rtn;
+MLOG2("renderDocPage(): returns:", rtn);
+} 
 
-  return rtn;
+  return rtn; 
+
 }
 
 extern MsdBookRendererPage *renderNextPage(BookRenderer *renderer,
@@ -326,20 +370,20 @@ extern WORD getPageCount(BookRenderer *p){
   return p->getPageCount();
 }
 extern int aTestFunc(int i) { return i + 3285; }
-EM_JS(void, do_fetch, (), {
-  Asyncify.handleSleep(function(wakeUp) {
-    out("waiting for a fetch");
-    fetch("a.html").then(response => {
-      out("got the fetch response");
-      // (normally you would do something with the fetch here)
-      wakeUp();
-    });
-  });
-});
+
 
 extern MsdLazyBook*  getMsdLazyBook(DWORD id,DWORD len){
+
+  if (is_lazy_loading) return NULL;
+  is_lazy_loading= true;
+  last_lazy_object = NULL;
+  MLOG("getMsdLazyBook(): creating jsreader");
   JsMsdRandomReader* reader = new JsMsdRandomReader(id,len);
+  MLOG2("getMsdLazyBook(): jsreader created:",reader);
   MsdLazyBook * rtn = new MsdLazyBook(reader);
+  MLOG2("getMsdLazyBook new Object address: ",rtn);
+
+  last_lazy_object = rtn;
   return rtn;
 }
 extern int deleteMsdLazyBook(MsdLazyBook* book){
@@ -347,38 +391,37 @@ extern int deleteMsdLazyBook(MsdLazyBook* book){
   return 0;
 }
 
-
-EM_JS(DWORD , js_do_fetch_1, (), {
-  return Asyncify.handleSleep(function(wakeUp) {
-    debugger;
-    out("Wasm: waiting for a fetch");
-    out("id:",id);
-    let k = msd_js_function_read_bytes(0,10);
-    k.then(res =>{
-      debugger;
-      wakeUp(0);
-      out("WASM: k resolved.");
-      return;
+// EM_JS(DWORD , js_do_fetch_1, (), {
+//   return Asyncify.handleSleep(function(wakeUp) {
+//     debugger;
+//     out("Wasm: waiting for a fetch");
+//     out("id:",id);
+//     let k = msd_js_function_read_bytes(0,10);
+//     k.then(res =>{
+//       debugger;
+//       wakeUp(0);
+//       out("WASM: k resolved.");
+//       return;
       
 
-        wakeUp(l);
-    //   wakeUp(res);
-    }, rej => {
-      out("WASM: k rejected");
-      wakeUp(0);
-    });
-    // await k;
-    // fetch("a.html").then(response => {
-    //   out("got the fetch response");
-    //   // (normally you would do something with the fetch here)
-    //   wakeUp();
-    // });
-  });
-});
+//         wakeUp(l);
+//     //   wakeUp(res);
+//     }, rej => {
+//       out("WASM: k rejected");
+//       wakeUp(0);
+//     });
+//     // await k;
+//     // fetch("a.html").then(response => {
+//     //   out("got the fetch response");
+//     //   // (normally you would do something with the fetch here)
+//     //   wakeUp();
+//     // });
+//   });
+// });
 
 extern int asyncFuncTest(){
   puts("asyncFuncTest Called.");
-  js_do_fetch_1();
+  // js_do_fetch_1();
   puts("After do_fetch() call.");
   return 0;
 };
